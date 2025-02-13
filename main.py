@@ -1,5 +1,5 @@
 """
-Main entry point for the Markdown translator application.
+Markdown翻译应用程序的主入口。
 """
 import os
 import argparse
@@ -16,81 +16,91 @@ def translate_file(
     api_base: Optional[str] = None
 ) -> None:
     """
-    Translate a Markdown file while preserving its structure.
+    翻译Markdown文件，同时保持其结构。
     
-    Args:
-        input_file: Path to input Markdown file
-        output_file: Path to output file (default: input_file_translated.md)
-        chunk_size: Maximum size of each chunk for translation
-        api_key: Optional API key for the translation service
-        api_base: Optional API base URL for the translation service
+    参数：
+        input_file: 输入Markdown文件的路径
+        output_file: 输出文件的路径（默认：input_file_translated.md）
+        chunk_size: 每个块的最大字符数
+        api_key: 翻译服务的可选API密钥
+        api_base: 翻译服务的可选API基础URL
     """
+    print(f"\n开始处理文件: {input_file}")
+    
     # 设置输出文件名
     if output_file is None:
         base, ext = os.path.splitext(input_file)
         output_file = f"{base}_translated{ext}"
 
     # 初始化组件
+    print("初始化组件...")
     chunker = Chunker(max_chunk_size=chunk_size)
     translator = Translator(api_key=api_key, api_base=api_base)
     parser = MarkdownParser()
 
     # 读取输入文件
+    print("读取输入文件...")
     with open(input_file, 'r', encoding='utf-8') as f:
         content = f.read()
 
     # 分析文档结构
+    print("分析文档结构...")
     headers = parser.get_headers(content)
     code_blocks = parser.get_code_blocks(content)
 
     # 分段
+    print("将文档分段...")
     chunks = chunker.split_text(content)
+    print(f"文档已分为 {len(chunks)} 段")
 
     # 翻译
+    print("\n开始翻译过程...")
     translated_chunks = translator.translate_batch(chunks)
 
     # 合并结果
+    print("\n合并翻译结果...")
     final_text = '\n\n'.join(translated_chunks)
 
     # 保存结果
+    print(f"保存翻译结果到: {output_file}")
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(final_text)
 
-    print(f"Translation completed. Output saved to: {output_file}")
+    print(f"\n翻译完成！输出已保存到：{output_file}")
 
 def main():
-    """Parse command line arguments and run the translator."""
+    """解析命令行参数并运行翻译器。"""
     parser = argparse.ArgumentParser(
-        description='Translate Markdown files while preserving formatting.'
+        description='翻译Markdown文件，同时保持格式。'
     )
     
     parser.add_argument(
         'input_file',
-        help='Path to the input Markdown file'
+        help='输入Markdown文件的路径'
     )
     
     parser.add_argument(
         '-o', '--output',
-        help='Path to the output file (default: input_file_translated.md)',
+        help='输出文件的路径（默认：input_file_translated.md）',
         default=None
     )
     
     parser.add_argument(
         '-s', '--chunk-size',
-        help='Maximum size of each chunk for translation (default: 5000)',
+        help='每个块的最大字符数（默认：5000）',
         type=int,
         default=5000
     )
     
     parser.add_argument(
         '-k', '--api-key',
-        help='API key for the translation service',
+        help='翻译服务的API密钥',
         default=None
     )
     
     parser.add_argument(
         '-b', '--api-base',
-        help='API base URL for the translation service',
+        help='翻译服务的API基础URL',
         default=None
     )
 
@@ -105,7 +115,7 @@ def main():
             api_base=args.api_base
         )
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"错误：{str(e)}")
         exit(1)
 
 if __name__ == '__main__':

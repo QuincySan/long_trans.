@@ -1,54 +1,54 @@
 """
-This module provides utilities for parsing and formatting Markdown text.
+该模块提供解析和格式化Markdown文本的工具。
 """
 from typing import List, Dict, Any
 from markdown_it import MarkdownIt
 
 class MarkdownParser:
     def __init__(self):
-        """Initialize the Markdown parser."""
+        """初始化Markdown解析器。"""
         self.md = MarkdownIt()
 
     def parse(self, text: str) -> List[Dict[str, Any]]:
         """
-        Parse Markdown text into a structured format.
+        将Markdown文本解析为结构化格式。
         
-        Args:
-            text: Input text in Markdown format
+        参数：
+            text: Markdown格式的输入文本
             
-        Returns:
-            List of dictionaries containing parsed tokens
+        返回：
+            包含解析后标记的字典列表
         """
         return self.md.parse(text)
 
     def render(self, tokens: List[Dict[str, Any]]) -> str:
         """
-        Render parsed tokens back to Markdown text.
+        将解析后的标记重新渲染为Markdown文本。
         
-        Args:
-            tokens: List of parsed Markdown tokens
+        参数：
+            tokens: 解析后的Markdown标记列表
             
-        Returns:
-            Rendered Markdown text
+        返回：
+            渲染后的Markdown文本
         """
         return self.md.renderer.render(tokens, self.md.options, {})
 
     def get_headers(self, text: str) -> List[Dict[str, Any]]:
         """
-        Extract all headers from Markdown text with their levels.
+        从Markdown文本中提取所有标题及其层级。
         
-        Args:
-            text: Input text in Markdown format
+        参数：
+            text: Markdown格式的输入文本
             
-        Returns:
-            List of dictionaries containing header information
+        返回：
+            包含标题信息的字典列表
         """
         tokens = self.parse(text)
         headers = []
         
         for token in tokens:
             if token.type == 'heading_open':
-                level = int(token.tag[1])  # h1 -> 1, h2 -> 2, etc.
+                level = int(token.tag[1])  # h1 -> 1, h2 -> 2, 等
                 content = tokens[tokens.index(token) + 1].content
                 headers.append({
                     'level': level,
@@ -60,13 +60,13 @@ class MarkdownParser:
 
     def get_code_blocks(self, text: str) -> List[Dict[str, str]]:
         """
-        Extract all code blocks from Markdown text.
+        从Markdown文本中提取所有代码块。
         
-        Args:
-            text: Input text in Markdown format
+        参数：
+            text: Markdown格式的输入文本
             
-        Returns:
-            List of dictionaries containing code block information
+        返回：
+            包含代码块信息的字典列表
         """
         tokens = self.parse(text)
         code_blocks = []

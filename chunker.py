@@ -1,5 +1,5 @@
 """
-This module handles the chunking of Markdown text into smaller segments.
+该模块负责将Markdown文本分割成更小的段落。
 """
 from typing import List
 import re
@@ -7,22 +7,22 @@ import re
 class Chunker:
     def __init__(self, max_chunk_size: int = 5000):
         """
-        Initialize the chunker with maximum chunk size.
+        使用最大块大小初始化分段器。
         
-        Args:
-            max_chunk_size: Maximum number of characters in each chunk
+        参数：
+            max_chunk_size: 每个块的最大字符数
         """
         self.max_chunk_size = max_chunk_size
 
     def split_text(self, text: str) -> List[str]:
         """
-        Split the input text into chunks while preserving Markdown structure.
+        将输入文本分割成块，同时保持Markdown结构。
         
-        Args:
-            text: Input text in Markdown format
+        参数：
+            text: Markdown格式的输入文本
             
-        Returns:
-            List of text chunks
+        返回：
+            文本块列表
         """
         # 首先按照标题分割
         sections = re.split(r'(#{1,6}\s[^\n]+\n)', text)
@@ -59,13 +59,13 @@ class Chunker:
 
     def _split_large_section(self, section: str) -> List[str]:
         """
-        Split a large section into smaller chunks at paragraph boundaries.
+        将大段落分割成更小的块，在段落边界处分割。
         
-        Args:
-            section: Large text section to split
+        参数：
+            section: 要分割的大段落文本
             
-        Returns:
-            List of smaller text chunks
+        返回：
+            更小的文本块列表
         """
         paragraphs = re.split(r'\n\n+', section)
         chunks = []
