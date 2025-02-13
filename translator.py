@@ -53,12 +53,16 @@ class Translator:
         completion = self.client.chat.completions.create(
             model="accounts/fireworks/models/deepseek-r1",
             stream=stream,
-            # temperature=0.6,
-            temperature=1,
+            temperature=0.6,
+            # temperature=1,
             messages=[
                 {"role": "system", "content": ""},
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            response_format={
+                "type": "grammar",
+                "grammar": 'root ::= "<think>\n" [^\n] (.)*'
+            }
         )
 
         if stream:
