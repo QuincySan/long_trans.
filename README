@@ -161,3 +161,20 @@ python main.py
 - **批量处理**：
   - 可在命令行参数中指定多个 Markdown 文件，批量翻译。
 
+---
+
+### 使用方法
+
+使用方法：
+首先安装依赖：
+pip install -r requirements.txt
+设置环境变量（创建.env文件）：
+FIREWORKS_API_KEY=your_api_key_here
+FIREWORKS_API_BASE=https://api.fireworks.ai/inference/v1
+运行翻译：
+python main.py input.md -o output.md
+可选参数：
+-o, --output: 指定输出文件路径
+-s, --chunk-size: 指定分段大小（默认5000字符）
+-k, --api-key: 直接指定API密钥
+-b, --api-base: 直接指定API基础URL
