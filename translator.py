@@ -41,14 +41,13 @@ class Translator:
         print("原文:\n", text[:100], "..." if len(text) > 100 else "")
         
         prompt = (
-            "以下内容是一段 Markdown 文本，请将其翻译成中文。注意事项：\n"
+            "以下内容是一段 Markdown 文本，请将其翻译成中文。\n 要求：\n"
             "1. 保持原有的 Markdown 结构、格式和标记\n"
             "2. 代码块内的代码和注释要分开处理：代码保持不变，只翻译注释\n"
             "3. 保持原有的标题层级\n"
             "4. 保留原有的列表格式和缩进\n"
             "5. 链接和图片的URL保持不变，只翻译描述文本\n"
-            "6. 在思考过程中使用<think>标签，并在回答前详细说明思考过程\n\n"
-            "需要翻译的文本：\n\n" + text
+            "需要翻译的文本：\n\n" + f"{text}"
         )
 
         completion = self.client.chat.completions.create(
