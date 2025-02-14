@@ -2,13 +2,13 @@
 该模块负责将Markdown文本分割成更小的段落。
 支持两级分段策略：
 1. 大段（约20,000词）用于生成摘要
-2. 小段（约5,000词）用于实际翻译
+2. 小段（约3,000词）用于实际翻译
 """
 from typing import List
 import re
 
 class Chunker:
-    def __init__(self, large_chunk_size: int = 20000, small_chunk_size: int = 5000):
+    def __init__(self, large_chunk_size: int = 20000, small_chunk_size: int = 3000):
         """
         使用最大块大小初始化分段器。
         
@@ -50,7 +50,7 @@ class Chunker:
 
     def split_for_translation(self, text: str) -> List[str]:
         """
-        将输入文本分割成小块（约5,000词），用于翻译。
+        将输入文本分割成小块（约3,000词），用于翻译。
         """
         return self._split_text(text, self.small_chunk_size)
 

@@ -39,8 +39,8 @@ def process_large_chunk(
     summary = summarizer.summarize(chunk)
     print(f"摘要生成完成，长度：{len(summary)}字")
     
-    # 2. 将大块分成小块（约5,000词）
-    print("进行第二级分段（约5,000词/段）...")
+    # 2. 将大块分成小块（约3,000词）
+    print("进行第二级分段（约3,000词/段）...")
     small_chunks = chunker.split_for_translation(chunk)
     print(f"当前大块分为 {len(small_chunks)} 个小段")
     
@@ -54,7 +54,7 @@ def translate_file(
     input_file: str,
     output_file: Optional[str] = None,
     large_chunk_size: int = 20000,
-    small_chunk_size: int = 5000,
+    small_chunk_size: int = 3000,
     api_key: Optional[str] = None,
     api_base: Optional[str] = None,
     log_dir: str = "logs"
@@ -168,9 +168,9 @@ def main():
     
     parser.add_argument(
         '--small-chunk-size',
-        help='小块的最大单词数（用于翻译，默认：5000）',
+        help='小块的最大单词数（用于翻译，默认：3000）',
         type=int,
-        default=5000
+        default=3000
     )
     
     parser.add_argument(
