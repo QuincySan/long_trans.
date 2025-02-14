@@ -46,7 +46,7 @@ def process_large_chunk(
     
     # 3. 使用摘要作为上下文翻译所有小块
     print("开始翻译...")
-    translated_chunks = translator.translate_batch_with_summary(small_chunks, summary)
+    translated_chunks = translator.translate_batch(small_chunks, summary=summary)
     
     return translated_chunks
 
