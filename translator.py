@@ -2,7 +2,7 @@
 该模块负责使用大语言模型(LLM)进行文本翻译。
 """
 from typing import List, Optional
-from llm_client import FireworksClient
+from llm_client import ZetaClient
 
 class Translator:
     def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None):
@@ -13,15 +13,16 @@ class Translator:
             api_key: 可选的API密钥。如果未提供，将尝试从环境变量获取。
             api_base: 可选的API基础URL。如果未提供，将尝试从环境变量获取。
         """
-        self.llm_client = FireworksClient(api_key=api_key, api_base=api_base)
+        self.llm_client = ZetaClient(api_key=api_key, api_base=api_base)
 
-    def translate_text(self, text: str, stream: bool = True) -> str:
+    def translate_text(self, text: str, stream: bool = True, model: str = "claude-3-5-sonnet-20241022") -> str:
         """
         翻译给定的文本，同时保持Markdown格式。
         
         参数：
             text: 要翻译的文本（Markdown格式）
             stream: 是否使用流式模式
+            model: 使用的模型名称
             
         返回：
             保持Markdown格式的翻译后文本
@@ -37,11 +38,11 @@ class Translator:
             """
         )
 
-        # 当调用模型为 deepseek-r1 时，使用 grammar 格式
+        # 只有在使用 deepseek-r1 模型时，才使用 grammar 格式
         response_format = {
             "type": "grammar",
             "grammar": 'root ::= "<think>\n" [^\n] (.)*'
-        }
+        } if "deepseek-r1" in model.lower() else None
 
         if stream:
             translated_text = []
@@ -52,6 +53,7 @@ class Translator:
             for content in self.llm_client.generate_text(
                 prompt=prompt,
                 stream=True,
+                model=model,
                 response_format=response_format
             ):
                 # 处理思考标签
@@ -79,6 +81,7 @@ class Translator:
             return self.llm_client.generate_text(
                 prompt=prompt,
                 stream=False,
+                model=model,
                 response_format=response_format
             )
 
