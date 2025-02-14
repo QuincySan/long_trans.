@@ -13,7 +13,8 @@ def translate_file(
     output_file: Optional[str] = None,
     chunk_size: int = 5000,
     api_key: Optional[str] = None,
-    api_base: Optional[str] = None
+    api_base: Optional[str] = None,
+    log_dir: str = "logs"
 ) -> None:
     """
     翻译Markdown文件，同时保持其结构。
@@ -24,6 +25,7 @@ def translate_file(
         chunk_size: 每个块的最大字符数
         api_key: 翻译服务的可选API密钥
         api_base: 翻译服务的可选API基础URL
+        log_dir: 日志文件保存目录
     """
     print(f"\n开始处理文件: {input_file}")
     
@@ -36,6 +38,7 @@ def translate_file(
     print("初始化组件...")
     chunker = Chunker(max_chunk_size=chunk_size)
     translator = Translator(api_key=api_key, api_base=api_base)
+    translator.logger.log_dir = log_dir  # 设置日志目录
     parser = MarkdownParser()
 
     # 读取输入文件
@@ -66,7 +69,9 @@ def translate_file(
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(final_text)
 
-    print(f"\n翻译完成！输出已保存到：{output_file}")
+    print(f"\n翻译完成！")
+    print(f"- 输出文件：{output_file}")
+    print(f"- 翻译日志：{translator.logger.current_log_file}")
 
 def main():
     """解析命令行参数并运行翻译器。"""
@@ -103,6 +108,12 @@ def main():
         help='翻译服务的API基础URL',
         default=None
     )
+    
+    parser.add_argument(
+        '-l', '--log-dir',
+        help='日志文件保存目录（默认：logs）',
+        default='logs'
+    )
 
     args = parser.parse_args()
 
@@ -112,7 +123,8 @@ def main():
             output_file=args.output,
             chunk_size=args.chunk_size,
             api_key=args.api_key,
-            api_base=args.api_base
+            api_base=args.api_base,
+            log_dir=args.log_dir
         )
     except Exception as e:
         print(f"错误：{str(e)}")

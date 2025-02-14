@@ -3,6 +3,7 @@
 """
 from typing import List, Optional
 from llm_client import ZetaClient
+from utils.translation_logger import TranslationLogger
 
 class Translator:
     def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None):
@@ -14,6 +15,7 @@ class Translator:
             api_base: 可选的API基础URL。如果未提供，将尝试从环境变量获取。
         """
         self.llm_client = ZetaClient(api_key=api_key, api_base=api_base)
+        self.logger = TranslationLogger()
 
     def translate_text(self, text: str, stream: bool = True, model: str = "claude-3-5-sonnet-20241022") -> str:
         """
@@ -101,6 +103,19 @@ class Translator:
         for i, text in enumerate(texts, 1):
             print(f"\n=== 正在翻译第 {i}/{total} 段 ===")
             result = self.translate_text(text)
+            
+            # 记录翻译结果
+            self.logger.log_segment(
+                original_text=text,
+                translated_text=result,
+                segment_index=i,
+                total_segments=total,
+                metadata={
+                    "model": "claude-3-5-sonnet-20241022",
+                    "stream": True
+                }
+            )
+            
             results.append(result)
             print(f"=== 第 {i}/{total} 段翻译完成 ===\n")
             
