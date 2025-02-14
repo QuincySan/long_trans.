@@ -19,7 +19,7 @@ def process_large_chunk(
     summarizer: Summarizer
 ) -> List[str]:
     """
-    处理一个大块文本（约20,000字）：生成摘要，然后分成小块翻译。
+    处理一个大块文本（约20,000词）：生成摘要，然后分成小块翻译。
     
     参数：
         chunk: 大块文本
@@ -39,8 +39,8 @@ def process_large_chunk(
     summary = summarizer.summarize(chunk)
     print(f"摘要生成完成，长度：{len(summary)}字")
     
-    # 2. 将大块分成小块（约5,000字）
-    print("进行第二级分段（约5,000字/段）...")
+    # 2. 将大块分成小块（约5,000词）
+    print("进行第二级分段（约5,000词/段）...")
     small_chunks = chunker.split_for_translation(chunk)
     print(f"当前大块分为 {len(small_chunks)} 个小段")
     
@@ -66,8 +66,8 @@ def translate_file(
     参数：
         input_file: 输入Markdown文件的路径（相对于articles目录）
         output_file: 输出文件的路径（默认：input_file_translated.md）
-        large_chunk_size: 大块的最大字符数（用于摘要）
-        small_chunk_size: 小块的最大字符数（用于翻译）
+        large_chunk_size: 大块的最大单词数（用于摘要）
+        small_chunk_size: 小块的最大单词数（用于翻译）
         api_key: LLM服务的API密钥
         api_base: LLM服务的API基础URL
         log_dir: 日志文件保存目录
@@ -105,10 +105,11 @@ def translate_file(
     headers = parser.get_headers(content)
     code_blocks = parser.get_code_blocks(content)
 
-    # 第一级分段（约20,000字/段）
-    print("进行第一级分段（约20,000字/段）...")
-    if len(content) <= large_chunk_size:
-        print("文档长度不超过20,000字，无需首轮分段")
+    # 第一级分段（约20,000词/段）
+    print("进行第一级分段（约20,000词/段）...")
+    word_count = chunker._count_words(content)
+    if word_count <= large_chunk_size:
+        print("文档长度不超过20,000词，无需首轮分段")
         large_chunks = [content]
     else:
         large_chunks = chunker.split_for_summary(content)
@@ -160,14 +161,14 @@ def main():
     
     parser.add_argument(
         '--large-chunk-size',
-        help='大块的最大字符数（用于摘要，默认：20000）',
+        help='大块的最大单词数（用于摘要，默认：20000）',
         type=int,
         default=20000
     )
     
     parser.add_argument(
         '--small-chunk-size',
-        help='小块的最大字符数（用于翻译，默认：5000）',
+        help='小块的最大单词数（用于翻译，默认：5000）',
         type=int,
         default=5000
     )
