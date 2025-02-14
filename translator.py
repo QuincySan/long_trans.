@@ -119,4 +119,114 @@ class Translator:
             results.append(result)
             print(f"=== 第 {i}/{total} 段翻译完成 ===\n")
             
-        return results 
+        return results
+
+    def translate_with_summary(self, text: str, summary: str) -> str:
+        """
+        使用摘要作为上下文来翻译文本。
+        
+        参数：
+            text: 要翻译的Markdown文本
+            summary: 用作上下文的摘要文本
+            
+        返回：
+            翻译后的文本
+        """
+        prompt = (
+            "你是一个专业的翻译助手。请根据以下背景摘要，翻译给定的Markdown文本。\n\n"
+            f"【背景摘要】:\n{summary}\n\n"
+            "【待翻译文本】:\n"
+            f"{text}\n\n"
+            "请注意：\n"
+            "1. 保持原有的Markdown格式和结构\n"
+            "2. 仅翻译文字内容，保留代码块、链接URL等不需要翻译的部分\n"
+            "3. 根据上下文准确理解并翻译专业术语\n"
+            "4. 输出翻译结果："
+        )
+        
+        # 使用流式输出进行翻译
+        translated_text = []
+        print("\n开始带摘要上下文的翻译...")
+        for content in self.llm_client.generate_text(
+            prompt=prompt,
+            stream=True,
+            model="claude-3-5-sonnet-20241022"
+        ):
+            if content and not content.isspace():
+                translated_text.append(content)
+                print(content, end="", flush=True)
+        
+        final_text = "".join(translated_text)
+        # 使用正确的日志方法，并添加元数据
+        self.logger.log_segment(
+            original_text=text,
+            translated_text=final_text,
+            segment_index=1,  # 在带摘要的翻译中，每次只处理一个片段
+            total_segments=1,
+            metadata={
+                "model": "claude-3-5-sonnet-20241022",
+                "stream": True,
+                "summary": summary  # 记录使用的摘要
+            }
+        )
+        print("\n\n翻译完成！")
+        return final_text.strip()
+
+    def translate_batch_with_summary(self, chunks: List[str], summary: str) -> List[str]:
+        """
+        使用相同的摘要上下文批量翻译多个文本块。
+        
+        参数：
+            chunks: 要翻译的Markdown文本块列表
+            summary: 用作上下文的摘要文本
+            
+        返回：
+            翻译后的文本块列表
+        """
+        total = len(chunks)
+        translated_chunks = []
+        
+        for i, chunk in enumerate(chunks, 1):
+            print(f"\n=== 正在翻译第 {i}/{total} 段（带摘要上下文）===")
+            prompt = (
+                "你是一个专业的翻译助手。请根据以下背景摘要，翻译给定的Markdown文本。\n\n"
+                f"【背景摘要】:\n{summary}\n\n"
+                "【待翻译文本】:\n"
+                f"{chunk}\n\n"
+                "请注意：\n"
+                "1. 保持原有的Markdown格式和结构\n"
+                "2. 仅翻译文字内容，保留代码块、链接URL等不需要翻译的部分\n"
+                "3. 根据上下文准确理解并翻译专业术语\n"
+                "4. 输出翻译结果："
+            )
+            
+            # 使用流式输出进行翻译
+            translated_text = []
+            print("\n开始带摘要上下文的翻译...")
+            for content in self.llm_client.generate_text(
+                prompt=prompt,
+                stream=True,
+                model="claude-3-5-sonnet-20241022"
+            ):
+                if content and not content.isspace():
+                    translated_text.append(content)
+                    print(content, end="", flush=True)
+            
+            final_text = "".join(translated_text)
+            # 使用正确的日志方法，并添加元数据
+            self.logger.log_segment(
+                original_text=chunk,
+                translated_text=final_text,
+                segment_index=i,
+                total_segments=total,
+                metadata={
+                    "model": "claude-3-5-sonnet-20241022",
+                    "stream": True,
+                    "summary": summary  # 记录使用的摘要
+                }
+            )
+            
+            translated_chunks.append(final_text.strip())
+            print(f"\n=== 第 {i}/{total} 段翻译完成 ===\n")
+            
+        return translated_chunks 

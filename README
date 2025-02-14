@@ -1,187 +1,278 @@
 
-## 项目名称：基于 LLM 的 Markdown 文本批量翻译
+## 基于 LLM 的 Markdown 文本批量翻译
 
 ### 一、项目简介
 
-本项目旨在对大段 Markdown 文本进行自动化的分段翻译，并在翻译后依然保留原有的 Markdown 层级及格式。整体流程包括：
-1. **读取并解析 Markdown 文件**
-2. **根据指定的规则进行分段**（例如按字数或自然段为单位分段）
-3. **调用大语言模型（LLM）进行翻译**
-4. **将翻译结果拼接为完整的 Markdown 文档**，并保留原文的层级结构和格式
+本项目用于对大段 Markdown 文档进行自动化翻译，力图保留原有的 Markdown 结构。与一般翻译流程不同的是，本项目先对文本进行长文本摘要，再在实际翻译时将摘要内容作为上下文，帮助大语言模型（LLM）更好地理解文本背景并进行准确翻译。
+
+#### 项目主要流程
+
+- 读取并解析 Markdown 文件
+- 对全文按「约 2 万字」进行首轮分段（如果原文小于 2 万字，则无需拆分），并对每段进行整体概要。
+- 再次细分翻译分段：对原文（或者分段后的每部分）再按「约 5,000 字」进行二次分段，用于实际调用 LLM 翻译。在翻译时，将对应的摘要内容与 5,000 字分段的文本一并传入 LLM，帮助模型理解上下文。
+- 将翻译结果拼接回原有的 Markdown 格式，形成最终输出。
+
+#### 示例：
+- **2 万字内**：不用拆分，先整体做摘要，再按 5,000 字翻译分段，翻译时带上整体摘要。
+- **4 万字**：先拆分为两段，每段 2 万字；对每段做摘要，然后各自再分割成若干个 5,000 字，翻译时带上对应的 2 万字摘要。
+- **6 万字**：分为三段，每段 2 万字；对每段做摘要，翻译时各段分别带其对应的摘要。
 
 ---
 
 ### 二、技术选型
 
-- **语言**：Python（版本 3.7+ 推荐）
+- **语言**：Python（建议版本 3.7+）
 - **依赖库**：
-  - `openai`（或自定义封装的 `from openai import OpenAI`）
+  - `openai`（或自定义封装，用于调用 Fireworks.ai 等 LLM 服务）
   - `markdown`、`markdown-it-py` 或类似库（可根据需要进行文本解析和处理）
   - 其他可选的文本处理工具，如 `re`、`textwrap` 等
+  - 其他必要的工具库（如 `argparse`、`dotenv` 等）
 
-> **注意**：本项目中使用的 `openai` 包与官方的 OpenAI 包接口略有差异，实际是对 Fireworks.ai 等服务的自定义封装，示例调用方式请参考下方代码。
-
----
-
-### 三、核心思路与代码结构
-
-#### 1. 读取 Markdown 文件
-- 通过 Python 的文件 I/O 将原始内容读取为字符串 `raw_text`。
-
-#### 2. 分段逻辑
-- 按约 5000 字（或其他自定义大小）为标准进行切分，尽量在自然段边界进行分割，以避免上下文断裂。
-- 如果需要更精细地保持 Markdown 结构，可以先解析成段落/标题/列表等结构，再在段落层面上聚合形成子块。
-
-#### 3. 翻译与调用 LLM
-- 对每个分段分别调用 LLM 进行翻译。
-- 调用时需要在提示词或上下文中强调需要保留 Markdown 结构、语法等。
-- 可以使用流式（stream）或非流式模式获取翻译结果。
-
-#### 4. 结果合并及格式保持
-- 将翻译后的各段依照原始顺序拼接，生成最终的 Markdown 文本。
-- 若需要在提示中保留代码块、标题层级等，可以在分段时给每个块添加相应标识，并在合并时根据标识正确插入。
+**注意**：本项目对 `openai` 模块进行了自定义封装，实际使用 Fireworks.ai 等服务。调用示例请参考下文。
 
 ---
 
-### 目录结构（示例）
+### 三、分段与翻译核心思路
+
+#### 1. 第一轮分段（约 2 万字）并摘要
+- 读取整个 Markdown 文本，统计字符数（或字数）。
+- 若小于 2 万字，则无需拆分，直接对全文做摘要。
+- 若超过 2 万字，每 2 万字左右切分一次（推荐以自然段边界切分）。
+- 对每个分段调用 LLM 生成段落级摘要。
+
+#### 2. 第二轮分段（约 5,000 字）并翻译
+- 对原文或对应的首轮分段再次进行精细切分，每次约 5,000 字左右。
+- 每个 5,000 字分段翻译时，将「对应的摘要」和「分段文本」一起作为 Prompt 发给 LLM，以便模型在理解上下文的基础上进行翻译。
+- 将翻译结果记录下来，并与原文段落/块建立对应关系。
+
+#### 3. 拼接并保持 Markdown 结构
+- 最终将所有翻译后的文本按原顺序拼接，保留标题、列表、代码块等 Markdown 结构。
+- 输出完整的翻译后 Markdown 文件。
+
+---
+
+### 四、目录结构（示例）
+
 ```plaintext
 markdown-translator/
 │
-├── README.md               # 本文档
-├── requirements.txt        # 项目所需的依赖包说明
-├── main.py                # 主要入口，用于组织整个翻译流程
-├── translator.py          # 翻译相关逻辑（调用 LLM）
-├── chunker.py             # 分段相关逻辑
-├── llm_client.py         # LLM 客户端实现
-├── articles/             # 存放原文和翻译结果的目录
-├── logs/                 # 存放翻译日志的目录
+├── README.md                # 本文件
+├── requirements.txt         # 项目所需依赖库
+├── main.py                  # 主入口脚本，组织翻译流程
+├── summarizer.py            # 摘要逻辑：2 万字级分段 + 调用 LLM 生成摘要
+├── translator.py            # 翻译逻辑：5,000 字级分段 + 调用 LLM
+├── chunker.py               # 分段相关函数（可包含两种不同的切分策略）
+├── llm_client.py            # LLM 客户端封装 (Fireworks.ai / openai 等)
+├── articles/                # 存放各类 Markdown 原文及翻译输出
+├── logs/                    # 存放翻译与摘要日志
 └── utils/
-    ├── markdown_parser.py # 用于对 Markdown 进行结构化解析及还原的辅助函数
-    └── translation_logger.py # 翻译过程的日志记录功能
+    ├── markdown_parser.py   # Markdown 解析与还原的辅助函数
+    └── translation_logger.py # 翻译过程中的日志功能
 ```
 
 ---
 
-### 四、示例代码片段
+### 五、示例流程代码片段
 
-#### `translator.py`
-以下是一个简化的示例，演示如何使用自定义封装的 `openai`（Fireworks.ai 版）进行流式调用（stream），并打印输出。
+#### `summarizer.py`（简化示例）
+
 ```python
-from openai import OpenAI
+from llm_client import call_llm
 
-api_key = "YOUR_API_KEY"
-api_base = "https://api.fireworks.ai/inference/v1"
-client = OpenAI(api_key=api_key, base_url=api_base)
-
-def openai_llm_stream(prompt: str):
+def summarize_long_text(text: str) -> str:
     """
-    对给定的 prompt 进行翻译或处理，返回生成结果。
-    可以根据需要增加 prompt 中对保持 Markdown 结构的说明。
+    调用 LLM 对约 2 万字的文本进行摘要。
+    返回摘要字符串。
     """
-
-    completion = client.chat.completions.create(
-        model="accounts/fireworks/models/deepseek-r1",
-        stream=True,
-        temperature=0.6,
-        messages=[
-            {"role": "system", "content": ""},
-            {"role": "user", "content": prompt}
-        ]
+    prompt = (
+        "以下是一段较长的文本，请生成一个简要的摘要，"
+        "包含主要主题、关键人物、核心概念等：\n\n"
+        f"{text}\n\n"
+        "请注意：需要中文输出，且摘要应不超过 500 字。"
     )
-
-    translated_text = []
-    for chunk in completion:
-        delta = chunk.choices[0].delta.content
-        if delta:
-            translated_text.append(delta)
-    return "".join(translated_text)
+    summary = call_llm(prompt)
+    return summary
 ```
 
-#### `main.py`
-在使用该函数时，需要先将你的文本分段，并在 prompt 中明确告知模型：需要保留段落、标题、列表、代码块等 Markdown 格式。
+#### `translator.py`（简化示例）
+
 ```python
-from chunker import split_text_into_segments
-from translator import openai_llm_stream
+from llm_client import call_llm
 
-def main():
+def translate_segment(segment: str, summary: str) -> str:
+    """
+    调用 LLM 对分段文本进行翻译，summary 为本段对应的前置摘要上下文。
+    返回翻译结果。
+    """
+    prompt = (
+        "你是一个专业的翻译助手，请根据下方摘要信息，对后续Markdown文本进行翻译。\n"
+        "在翻译时，请尽可能保留Markdown格式，包括标题、列表、代码块等结构。\n\n"
+        f"【本段摘要】:\n{summary}\n\n"
+        f"【待翻译文本】:\n{segment}\n\n"
+        "请注意：仅翻译正文内容，Markdown结构与标记请原样保留。"
+    )
+    translated = call_llm(prompt)
+    return translated
+```
+
+#### 3. chunker.py：分段逻辑
+
+此处我们演示了两个函数：
+- `split_into_large_chunks(text, max_size=20000)`：按 ~20,000 字分成大块，用于“总结”阶段；
+- `split_into_small_chunks(text, max_size=5000)`：按 ~5,000 字分成小块，用于“翻译”阶段。
+
+以下是代码示例：
+
+```python
+import re
+
+def split_into_large_chunks(text, max_size=20000):
+    """
+    按约 20,000 字符为单位进行大块拆分，尽量在段落边界断开。
+    若总长度 <= 20,000，不拆分；否则拆分多个块。
+    返回一个列表，每个元素是一段文本。
+    """
+    # 去掉多余空行，以便后续处理
+    paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
+
+    chunks = []
+    current_chunk = []
+    current_length = 0
+
+    for para in paragraphs:
+        para_length = len(para)
+        # 如果加上这个段落后超过max_size，则先把当前块加入chunks，再新建块
+        if current_length + para_length > max_size and current_chunk:
+            chunks.append("\n".join(current_chunk))
+            current_chunk = [para]
+            current_length = para_length
+        else:
+            current_chunk.append(para)
+            current_length += para_length
+    
+    # 最后一块
+    if current_chunk:
+        chunks.append("\n".join(current_chunk))
+
+    return chunks
+
+
+def split_into_small_chunks(text, max_size=5000):
+    """
+    按约 5,000 字符为单位进行小块拆分，尽量在段落边界断开。
+    返回一个列表，每个元素是一段文本。
+    """
+    paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
+
+    chunks = []
+    current_chunk = []
+    current_length = 0
+
+    for para in paragraphs:
+        para_length = len(para)
+        if current_length + para_length > max_size and current_chunk:
+            chunks.append("\n".join(current_chunk))
+            current_chunk = [para]
+            current_length = para_length
+        else:
+            current_chunk.append(para)
+            current_length += para_length
+
+    if current_chunk:
+        chunks.append("\n".join(current_chunk))
+
+    return chunks
+```
+
+
+#### 6. main.py：主流程示例
+
+```python
+import os
+from chunker import split_into_large_chunks, split_into_small_chunks
+from summarizer import summarize_text
+from translator import translate_segment
+
+def main(input_file, output_file):
     # 1. 读取 Markdown 文件
-    with open("input.md", "r", encoding="utf-8") as f:
+    with open(input_file, "r", encoding="utf-8") as f:
         raw_text = f.read()
+    
+    text_length = len(raw_text)
+    
+    # 2. 判断是否需要拆分大块
+    if text_length <= 20000:
+        large_chunks = [raw_text]
+    else:
+        large_chunks = split_into_large_chunks(raw_text, max_size=20000)
+    
+    all_translated_texts = []
+    
+    # 3. 对每个大块分别进行总结，然后再拆分小块进行翻译
+    for idx, chunk in enumerate(large_chunks):
+        print(f"处理第 {idx+1} 个大块，长度：{len(chunk)}")
+        
+        summary = summarize_text(chunk)
+        
+        small_chunks = split_into_small_chunks(chunk, max_size=5000)
+        
+        translated_sub_blocks = []
+        
+        for sidx, sub_chunk in enumerate(small_chunks):
+            print(f"  翻译大块{idx+1}的第 {sidx+1} 个小块，长度：{len(sub_chunk)}")
+            translated_text = translate_segment(sub_chunk, summary)
+            translated_sub_blocks.append(translated_text)
+        
+        translated_chunk = "\n".join(translated_sub_blocks)
+        all_translated_texts.append(translated_chunk)
+    
+    final_translated_text = "\n".join(all_translated_texts)
+    
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(final_translated_text)
+    
+    print(f"翻译完成！结果已输出到：{output_file}")
 
-    # 2. 分段
-    segments = split_text_into_segments(raw_text, max_length=5000)
-
-    # 3. 翻译 + 合并结果
-    translated_segments = []
-    for seg in segments:
-        # 在提示词中可以加入保留 Markdown 结构的要求
-        prompt = (
-            "以下内容是一段 Markdown 文本，请保持原有的 Markdown "
-            "结构、代码块格式、标题层级，仅翻译文字部分：\n\n" + seg
-        )
-        result = openai_llm_stream(prompt)
-        translated_segments.append(result)
-
-    final_text = "\n".join(translated_segments)
-
-    # 4. 写入输出文件
-    with open("output.md", "w", encoding="utf-8") as f:
-        f.write(final_text)
 
 if __name__ == "__main__":
-    main()
+    input_md = "articles/example.md"
+    output_md = "articles/example_zh.md"
+    main(input_md, output_md)
 ```
+
 
 ---
 
-### 五、如何使用
+### 六、安装与使用
 
 #### 1. 安装依赖
-在项目根目录下执行：
+
+在项目根目录下，运行：
+
 ```bash
 pip install -r requirements.txt
 ```
 
-#### 2. 配置 API Key
-- 将 Fireworks.ai 等服务的 API key 填写到 `translator.py` 中对应位置，或用环境变量方式注入。
+#### 2. 配置环境变量
 
-#### 3. 运行脚本
-```bash
-python main.py
+根据实际需求，将 Fireworks.ai 或其他 LLM 服务的 API Key 写入环境变量或使用 `.env` 文件：
+
+```plaintext
+FIREWORKS_API_KEY=YOUR_API_KEY_HERE
+FIREWORKS_API_BASE=https://api.fireworks.ai/inference/v1
 ```
 
-#### 4. 查看结果
-- 翻译完成后，在项目根目录下可查看到 `output.md`，其中保留了原有的 Markdown 结构。
+#### 3. 运行翻译脚本
 
----
+```bash
+python main.py input.md -o output.md
+```
 
-### 六、后续改进
-- **更灵活的分段策略**：
-  - 可根据 Markdown 结构直接拆分为标题段落、列表、代码块等。
-- **自定义提示词**：
-  - 可在 prompt 中更加精细地提示模型如何处理各类 Markdown 元素。
-- **错误处理与日志**：
-  - 为网络调用、超时或分段失败等情况编写容错代码。
-- **批量处理**：
-  - 可在命令行参数中指定多个 Markdown 文件，批量翻译。
-
----
-
-### 使用方法
-
-使用方法：
-首先安装依赖：
-`pip install -r requirements.txt`
-设置环境变量（创建.env文件）：
-FIREWORKS_API_KEY=your_api_key_here
-FIREWORKS_API_BASE=https://api.fireworks.ai/inference/v1
-运行翻译：
-`python main.py input.md -o output.md`
-可选参数：
--o, --output: 指定输出文件路径
--s, --chunk-size: 指定分段大小（默认5000字符）
--k, --api-key: 直接指定API密钥
--b, --api-base: 直接指定API基础URL
+- `input.md`：原文 Markdown 文件路径
+- `-o, --output`：输出的翻译后 Markdown 文件
+- `-s, --chunk-size`：翻译分段大小，默认 5000
+- `-t, --summary-chunk-size`：摘要分段大小，默认 20000
+- `-l, --log-dir`：日志目录，默认 `logs`
 
 假设有一个文章 example.md 在 articles 目录下
 python main.py example.md
@@ -194,3 +285,16 @@ python main.py input.md -o output.md
 
 指定自定义日志目录：
 python main.py input.md -o output.md -l custom_logs
+
+#### 4. 查看翻译结果
+
+运行成功后，查看 `output.md` 即可。
+
+---
+
+### 七、后续改进与注意事项
+
+- **摘要策略**：可根据文档类型、语言特点进一步优化摘要提示。
+- **Markdown 解析**：若对结构保留要求较高，需使用 Markdown AST 解析，再分段处理，以防断行、代码块等格式混乱。
+- **容错与重试机制**：网络调用、超时以及模型返回异常等情况需要结合实际使用场景做好重试或异常处理。
+- **批量处理**：可在命令行参数中指定多个 Markdown 文件，批量翻译。

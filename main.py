@@ -1,30 +1,75 @@
 """
 Markdown翻译应用程序的主入口。
+支持两级分段策略：先生成摘要，再进行翻译。
 """
 import os
 import argparse
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
 from chunker import Chunker
 from translator import Translator
+from summarizer import Summarizer
 from utils.markdown_parser import MarkdownParser
+
+def process_large_chunk(
+    chunk: str,
+    chunk_index: int,
+    total_chunks: int,
+    chunker: Chunker,
+    translator: Translator,
+    summarizer: Summarizer
+) -> List[str]:
+    """
+    处理一个大块文本（约20,000字）：生成摘要，然后分成小块翻译。
+    
+    参数：
+        chunk: 大块文本
+        chunk_index: 当前块索引
+        total_chunks: 总块数
+        chunker: 分段器实例
+        translator: 翻译器实例
+        summarizer: 摘要生成器实例
+        
+    返回：
+        翻译后的文本块列表
+    """
+    print(f"\n=== 处理第 {chunk_index}/{total_chunks} 个大块 ===")
+    
+    # 1. 为当前大块生成摘要
+    print("生成摘要...")
+    summary = summarizer.summarize(chunk)
+    print(f"摘要生成完成，长度：{len(summary)}字")
+    
+    # 2. 将大块分成小块（约5,000字）
+    print("进行第二级分段（约5,000字/段）...")
+    small_chunks = chunker.split_for_translation(chunk)
+    print(f"当前大块分为 {len(small_chunks)} 个小段")
+    
+    # 3. 使用摘要作为上下文翻译所有小块
+    print("开始翻译...")
+    translated_chunks = translator.translate_batch_with_summary(small_chunks, summary)
+    
+    return translated_chunks
 
 def translate_file(
     input_file: str,
     output_file: Optional[str] = None,
-    chunk_size: int = 5000,
+    large_chunk_size: int = 20000,
+    small_chunk_size: int = 5000,
     api_key: Optional[str] = None,
     api_base: Optional[str] = None,
     log_dir: str = "logs"
 ) -> None:
     """
     翻译Markdown文件，同时保持其结构。
+    使用两级分段策略：先按大块生成摘要，再按小块进行翻译。
     
     参数：
         input_file: 输入Markdown文件的路径（相对于articles目录）
         output_file: 输出文件的路径（默认：input_file_translated.md）
-        chunk_size: 每个块的最大字符数
-        api_key: 翻译服务的可选API密钥
-        api_base: 翻译服务的可选API基础URL
+        large_chunk_size: 大块的最大字符数（用于摘要）
+        small_chunk_size: 小块的最大字符数（用于翻译）
+        api_key: LLM服务的API密钥
+        api_base: LLM服务的API基础URL
         log_dir: 日志文件保存目录
     """
     # 确保articles目录存在
@@ -44,8 +89,9 @@ def translate_file(
 
     # 初始化组件
     print("初始化组件...")
-    chunker = Chunker(max_chunk_size=chunk_size)
+    chunker = Chunker(large_chunk_size=large_chunk_size, small_chunk_size=small_chunk_size)
     translator = Translator(api_key=api_key, api_base=api_base)
+    summarizer = Summarizer(api_key=api_key, api_base=api_base)
     translator.logger.log_dir = log_dir  # 设置日志目录
     parser = MarkdownParser()
 
@@ -59,18 +105,31 @@ def translate_file(
     headers = parser.get_headers(content)
     code_blocks = parser.get_code_blocks(content)
 
-    # 分段
-    print("将文档分段...")
-    chunks = chunker.split_text(content)
-    print(f"文档已分为 {len(chunks)} 段")
+    # 第一级分段（约20,000字/段）
+    print("进行第一级分段（约20,000字/段）...")
+    if len(content) <= large_chunk_size:
+        print("文档长度不超过20,000字，无需首轮分段")
+        large_chunks = [content]
+    else:
+        large_chunks = chunker.split_for_summary(content)
+    print(f"文档分为 {len(large_chunks)} 个大段")
 
-    # 翻译
-    print("\n开始翻译过程...")
-    translated_chunks = translator.translate_batch(chunks)
+    # 处理每个大段（生成摘要、二次分段、翻译）
+    all_translated_chunks = []
+    for i, large_chunk in enumerate(large_chunks, 1):
+        translated_chunks = process_large_chunk(
+            chunk=large_chunk,
+            chunk_index=i,
+            total_chunks=len(large_chunks),
+            chunker=chunker,
+            translator=translator,
+            summarizer=summarizer
+        )
+        all_translated_chunks.extend(translated_chunks)
 
-    # 合并结果
-    print("\n合并翻译结果...")
-    final_text = '\n\n'.join(translated_chunks)
+    # 合并所有翻译结果
+    print("\n合并所有翻译结果...")
+    final_text = '\n\n'.join(all_translated_chunks)
 
     # 保存结果
     print(f"保存翻译结果到: {output_path}")
@@ -85,7 +144,7 @@ def translate_file(
 def main():
     """解析命令行参数并运行翻译器。"""
     parser = argparse.ArgumentParser(
-        description='翻译Markdown文件，同时保持格式。'
+        description='翻译Markdown文件，同时保持格式。使用两级分段策略：先生成摘要，再进行翻译。'
     )
     
     parser.add_argument(
@@ -100,21 +159,28 @@ def main():
     )
     
     parser.add_argument(
-        '-s', '--chunk-size',
-        help='每个块的最大字符数（默认：5000）',
+        '--large-chunk-size',
+        help='大块的最大字符数（用于摘要，默认：20000）',
+        type=int,
+        default=20000
+    )
+    
+    parser.add_argument(
+        '--small-chunk-size',
+        help='小块的最大字符数（用于翻译，默认：5000）',
         type=int,
         default=5000
     )
     
     parser.add_argument(
         '-k', '--api-key',
-        help='翻译服务的API密钥',
+        help='LLM服务的API密钥',
         default=None
     )
     
     parser.add_argument(
         '-b', '--api-base',
-        help='翻译服务的API基础URL',
+        help='LLM服务的API基础URL',
         default=None
     )
     
@@ -130,7 +196,8 @@ def main():
         translate_file(
             input_file=args.input_file,
             output_file=args.output,
-            chunk_size=args.chunk_size,
+            large_chunk_size=args.large_chunk_size,
+            small_chunk_size=args.small_chunk_size,
             api_key=args.api_key,
             api_base=args.api_base,
             log_dir=args.log_dir
