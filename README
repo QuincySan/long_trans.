@@ -167,12 +167,12 @@ python main.py
 
 使用方法：
 首先安装依赖：
-pip install -r requirements.txt
+`pip install -r requirements.txt`
 设置环境变量（创建.env文件）：
 FIREWORKS_API_KEY=your_api_key_here
 FIREWORKS_API_BASE=https://api.fireworks.ai/inference/v1
 运行翻译：
-python main.py input.md -o output.md
+`python main.py input.md -o output.md`
 可选参数：
 -o, --output: 指定输出文件路径
 -s, --chunk-size: 指定分段大小（默认5000字符）
