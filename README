@@ -49,11 +49,15 @@ markdown-translator/
 │
 ├── README.md               # 本文档
 ├── requirements.txt        # 项目所需的依赖包说明
-├── main.py                 # 主要入口，用于组织整个翻译流程
-├── chunker.py              # 分段相关逻辑
-├── translator.py           # 翻译相关逻辑（调用 LLM）
+├── main.py                # 主要入口，用于组织整个翻译流程
+├── translator.py          # 翻译相关逻辑（调用 LLM）
+├── chunker.py             # 分段相关逻辑
+├── llm_client.py         # LLM 客户端实现
+├── articles/             # 存放原文和翻译结果的目录
+├── logs/                 # 存放翻译日志的目录
 └── utils/
-    └── markdown_parser.py  # 用于对 Markdown 进行结构化解析及还原的辅助函数
+    ├── markdown_parser.py # 用于对 Markdown 进行结构化解析及还原的辅助函数
+    └── translation_logger.py # 翻译过程的日志记录功能
 ```
 
 ---
@@ -178,3 +182,15 @@ FIREWORKS_API_BASE=https://api.fireworks.ai/inference/v1
 -s, --chunk-size: 指定分段大小（默认5000字符）
 -k, --api-key: 直接指定API密钥
 -b, --api-base: 直接指定API基础URL
+
+假设有一个文章 example.md 在 articles 目录下
+python main.py example.md
+
+或者指定输出文件名（仍然保存在 articles 目录下）
+python main.py example.md -o example_zh.md
+
+基本用法（使用默认日志目录）：
+python main.py input.md -o output.md
+
+指定自定义日志目录：
+python main.py input.md -o output.md -l custom_logs

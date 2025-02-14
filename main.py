@@ -20,19 +20,27 @@ def translate_file(
     翻译Markdown文件，同时保持其结构。
     
     参数：
-        input_file: 输入Markdown文件的路径
+        input_file: 输入Markdown文件的路径（相对于articles目录）
         output_file: 输出文件的路径（默认：input_file_translated.md）
         chunk_size: 每个块的最大字符数
         api_key: 翻译服务的可选API密钥
         api_base: 翻译服务的可选API基础URL
         log_dir: 日志文件保存目录
     """
-    print(f"\n开始处理文件: {input_file}")
+    # 确保articles目录存在
+    articles_dir = "articles"
+    if not os.path.exists(articles_dir):
+        os.makedirs(articles_dir)
     
-    # 设置输出文件名
+    # 构建完整的输入文件路径
+    input_path = os.path.join(articles_dir, input_file)
+    print(f"\n开始处理文件: {input_path}")
+    
+    # 设置输出文件名和路径
     if output_file is None:
         base, ext = os.path.splitext(input_file)
         output_file = f"{base}_translated{ext}"
+    output_path = os.path.join(articles_dir, output_file)
 
     # 初始化组件
     print("初始化组件...")
@@ -43,7 +51,7 @@ def translate_file(
 
     # 读取输入文件
     print("读取输入文件...")
-    with open(input_file, 'r', encoding='utf-8') as f:
+    with open(input_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
     # 分析文档结构
@@ -65,12 +73,13 @@ def translate_file(
     final_text = '\n\n'.join(translated_chunks)
 
     # 保存结果
-    print(f"保存翻译结果到: {output_file}")
-    with open(output_file, 'w', encoding='utf-8') as f:
+    print(f"保存翻译结果到: {output_path}")
+    with open(output_path, 'w', encoding='utf-8') as f:
         f.write(final_text)
 
     print(f"\n翻译完成！")
-    print(f"- 输出文件：{output_file}")
+    print(f"- 输入文件：{input_path}")
+    print(f"- 输出文件：{output_path}")
     print(f"- 翻译日志：{translator.logger.current_log_file}")
 
 def main():
@@ -81,12 +90,12 @@ def main():
     
     parser.add_argument(
         'input_file',
-        help='输入Markdown文件的路径'
+        help='输入Markdown文件的路径（相对于articles目录）'
     )
     
     parser.add_argument(
         '-o', '--output',
-        help='输出文件的路径（默认：input_file_translated.md）',
+        help='输出文件的路径（相对于articles目录，默认：input_file_translated.md）',
         default=None
     )
     
