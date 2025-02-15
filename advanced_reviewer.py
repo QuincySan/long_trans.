@@ -99,7 +99,7 @@ class AdvancedReviewer:
         
         return response_text.strip()
 
-    def review_and_polish(self, source_text: str, translated_text: str) -> Tuple[str, str]:
+    def comment_and_polish(self, source_text: str, translated_text: str) -> Tuple[str, str]:
         """
         整合「点评可优化之处 + 基于改进意见润色」两步，供外部一次性调用。
 
@@ -111,9 +111,14 @@ class AdvancedReviewer:
             (最终润色完成的译文, 审校意见)
         """
         # 1. 找出可优化之处
+        print("\n正在分析译文，寻找可优化之处...")
         comments = self.comment_on_translation(source_text, translated_text)
+        print("\n审校意见：")
+        print(comments)
         
         # 2. 根据改进点对译文进行润色
+        print("\n开始根据审校意见进行润色...")
         final_text = self.polish_with_comments(translated_text, comments)
+        print("\n润色完成！")
         
         return final_text, comments 

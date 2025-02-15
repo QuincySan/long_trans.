@@ -172,7 +172,7 @@ class Translator:
             final_text, rating_result = self.reviewer.review_and_polish(text, translated_text)
             return final_text
         elif self.quality_level == "advanced":
-            final_text, review_result = self.reviewer.review_and_polish(text, translated_text)
+            final_text, review_result = self.reviewer.comment_and_polish(text, translated_text)
             
             # 记录高级模式的审校结果
             self.logger.log_advanced_review(
