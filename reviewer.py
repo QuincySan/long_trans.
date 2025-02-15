@@ -33,7 +33,7 @@ class TranslationReviewer:
         返回：
             包含评分和评语的字典
         """
-        prompt = f"""你是一位专业的译文审校员。请对以下原文与译文进行比对，根据以下五个维度评分（每个维度0~10分），并输出JSON格式的结果：
+        prompt = f"""你是一位专业的重写审校员。请对以下原文与重写内容进行比对，根据以下五个维度评分（每个维度0~10分），并输出JSON格式的结果：
 
 维度：
 1. accuracy (准确性)
@@ -63,7 +63,7 @@ class TranslationReviewer:
 {source_text}
 ---
 
-以下是译文：
+以下是重写内容：
 ---
 {translated_text}
 ---"""
