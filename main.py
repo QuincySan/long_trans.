@@ -290,8 +290,8 @@ def main():
 
     parser.add_argument(
         '--quality',
-        help='翻译质量等级 (basic: 基础翻译，适合一般性文档; high: 高质量翻译，适合专业技术文档。默认：basic)',
-        choices=['basic', 'high'],
+        help='翻译质量等级 (basic: 基础翻译，适合一般性文档; medium: 中级翻译，带评分和润色; advanced: 高级翻译，带详细点评和润色。默认：basic)',
+        choices=['basic', 'medium', 'advanced'],
         default='basic'
     )
 
@@ -307,7 +307,12 @@ def main():
             files = [args.file]
         else:
             # 批量模式：处理输入文件夹中的所有.md文件
-            print(f"\n[提示] 使用基础翻译等级。如需高质量翻译，请添加 --quality high 参数")
+            if args.quality == "basic":
+                print(f"\n[提示] 使用基础翻译等级。如需更高质量翻译，请添加 --quality medium 或 --quality advanced 参数")
+            elif args.quality == "medium":
+                print(f"\n[提示] 使用中级翻译等级，将对译文进行评分和润色")
+            else:  # advanced
+                print(f"\n[提示] 使用高级翻译等级，将对译文进行详细点评和润色")
             files = [f for f in os.listdir(args.input_folder) if f.lower().endswith(".md")]
 
         process_files(

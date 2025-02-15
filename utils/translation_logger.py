@@ -4,7 +4,7 @@
 import os
 import json
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 class TranslationLogger:
     def __init__(self, log_dir: str = "logs"):
@@ -150,3 +150,31 @@ class TranslationLogger:
             所有翻译片段的列表
         """
         return self.segments 
+
+    def log_advanced_review(
+        self,
+        original_text: str,
+        initial_translation: str,
+        final_translation: str,
+        review_result: str
+    ) -> None:
+        """
+        记录高级模式下的审校结果。
+        
+        参数：
+            original_text: 原文
+            initial_translation: 初步译文
+            final_translation: 最终润色后的译文
+            review_result: 审校意见文本
+        """
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "type": "advanced_review",
+            "original_text": original_text,
+            "initial_translation": initial_translation,
+            "final_translation": final_translation,
+            "review_comments": review_result
+        }
+        
+        self.segments.append(log_entry)
+        self._save_log() 

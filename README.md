@@ -74,7 +74,7 @@ markdown-translator/
 ├── README.md                # 项目说明文档
 ├── requirements.txt         # Python 依赖库清单
 ├── .env                     # 环境变量配置文件
-├── main.py                  # 主程序入口，协调整体翻译流程
+├── main.py                  # 主程序入口，协调整体翻译Larry live确实不是很流程
 ├── translator.py            # 核心翻译逻辑实现
 ├── summarizer.py            # 文本摘要生成模块
 ├── reviewer.py              # 翻译质量评分和润色模块
@@ -126,30 +126,10 @@ python main.py input.md output.md
 
 你也可以添加更多可选参数（如 `--model`、`--large-chunk-size`、`--small-chunk-size`、`--log-dir` 等）到命令行中进行控制。
 
+python main.py --quality advanced
 ---
 
-### 七、开发记录
-
-#### 2024-02-13
-- 项目初始化
-- 创建基本项目结构
-- 实现 LLM 客户端封装
-
-#### 2024-02-14
-- 实现 Markdown 解析器
-- 添加翻译日志记录功能
-- 完成环境变量配置
-
-#### 2024-02-15
-- 实现文本分段策略
-- 完成翻译核心功能
-- 添加摘要生成模块
-- 实现翻译质量评分功能
-- 完善项目文档
-
----
-
-### 八、中级翻译流程：翻译 + 自动评分 + 润色
+### 七、中级翻译流程：翻译 + 自动评分 + 润色
 
 在上述基础功能之上，你还可以引入「自动评分与润色」的中级翻译流程。具体思路如下：
 
