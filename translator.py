@@ -6,7 +6,7 @@ from llm_client import ZetaClient
 from utils.translation_logger import TranslationLogger
 
 class Translator:
-    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None, default_model: str = "claude-3-5-sonnet-20241022"):
+    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None, default_model: str = "deepseek-v3"):
         """
         使用API凭证初始化翻译器。
         

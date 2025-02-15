@@ -196,7 +196,7 @@ def main():
     parser.add_argument(
         '--model',
         help='选择使用的模型 (claude-3-5-sonnet-20241022, deepseek-v3, gemini-2.0-pro-exp-02-05)',
-        default="claude-3-5-sonnet-20241022"
+        default="deepseek-v3"
     )
 
     args = parser.parse_args()
