@@ -10,7 +10,7 @@ from advanced_reviewer import AdvancedReviewer
 
 class Translator:
     def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None, 
-                 default_model: str = "deepseek-v3", quality_level: str = "basic"):
+                 default_model: str = "gemini-2.0-pro-exp-02-05", quality_level: str = "basic"):
         """
         使用API凭证初始化翻译器。
         

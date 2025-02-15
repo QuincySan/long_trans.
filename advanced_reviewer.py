@@ -1,33 +1,45 @@
 """
 该模块负责在「高级模式」下，对翻译结果进行点评并提出可优化之处，然后基于这些改进点进行二次润色。
 """
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, Generator, Iterator, Union
 from llm_client import ZetaClient
 import json
 
 class AdvancedReviewer:
-    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None,
+                 review_model: str = "claude-3-5-sonnet-20241022",
+                 polish_model: str = "gemini-2.0-pro-exp-02-05"):
         """
         初始化高级翻译审校器。
         
         参数：
             api_key: LLM服务API密钥
             api_base: LLM服务API基础URL
+            review_model: 用于审校评论的模型名称
+            polish_model: 用于润色的模型名称
         """
         self.llm_client = ZetaClient(api_key=api_key, api_base=api_base)
+        self.latest_comments = None  # 存储最近一次的审校意见
+        self.latest_polished_text = None  # 存储最近一次的润色结果
+        self.review_model = review_model
+        self.polish_model = polish_model
 
-    def comment_on_translation(self, source_text: str, translated_text: str) -> str:
+    def comment_on_translation(self, source_text: str, translated_text: str, stream: bool = True) -> Union[str, Iterator[str]]:
         """
         让模型针对原文和译文，找出可优化之处（不需要给出评分），只需指出问题与改进建议。
 
         参数：
             source_text: 原文
             translated_text: 译文
+            stream: 是否使用流式输出，默认为True
 
         返回：
-            模型给出的改进建议文本
+            如果stream=True，返回字符串生成器；否则返回完整的改进建议文本
         """
-        prompt = f"""你是一位专业的译文审校员。请仔细阅读以下原文与其译文，找出可以改进的地方。
+        system_prompt = """你是一位20年丰富经验专业的审校专家，精通中英文，对专业术语、行业用语和文体风格都有深入研究。
+你的任务是仔细审查译文质量，找出所有可以改进的地方，并提供专业、具体的改进建议。"""
+
+        user_prompt = f"""请仔细阅读以下原文与其译文，找出可以改进的地方。
 
 原文：
 ---
@@ -44,34 +56,40 @@ class AdvancedReviewer:
 2. 语序的自然度和流畅性
 3. 表达的地道性和优雅度
 4. 文本的整体连贯性
+5. markdown格式的保持
 
 对于每个发现的问题：
 - 明确指出问题所在
 - 解释为什么需要改进
-- 给出具体的改进建议
+- 给出具体的改进建议"""
 
-请直接列出你的审校意见，不需要任何特定格式。重点是让意见清晰、具体、可操作。
-"""
-        response_text = self.llm_client.generate_text(
-            prompt=prompt,
-            stream=False,
-            model="claude-3-5-sonnet-20241022"
+        response = self.llm_client.generate_text(
+            prompt=user_prompt,
+            stream=stream,
+            model=self.review_model,
+            system_prompt=system_prompt
         )
         
-        return response_text.strip()
+        if stream:
+            return response
+        return response.strip()
 
-    def polish_with_comments(self, translated_text: str, comments: str) -> str:
+    def polish_with_comments(self, translated_text: str, comments: str, stream: bool = True) -> Union[str, Iterator[str]]:
         """
         根据审校意见，对译文进行润色/改进。
 
         参数：
             translated_text: 初步译文
             comments: 审校意见
+            stream: 是否使用流式输出，默认为True
 
         返回：
-            润色后的译文
+            如果stream=True，返回字符串生成器；否则返回完整的润色后译文
         """
-        prompt = f"""作为一位专业的中文编辑，请根据以下审校意见，对译文进行修改与润色。
+        system_prompt = """你是一位有着20年丰富经验专业的中英文编辑，擅长根据审校意见优化和润色译文。
+你的任务是在保持原意的基础上，保持原有的Markdown格式和结构，让译文更加准确、流畅、地道。"""
+
+        user_prompt = f"""请根据以下审校意见，对译文进行修改与润色。
 
 当前译文：
 ---
@@ -89,36 +107,72 @@ class AdvancedReviewer:
 3. 使表达更加自然、地道
 4. 提升文本的整体连贯性和可读性
 
-请直接输出优化后的译文，不要包含任何解释或说明。
-"""
-        response_text = self.llm_client.generate_text(
-            prompt=prompt,
-            stream=False,
-            model="claude-3-5-sonnet-20241022"
+请直接输出优化后的译文，不要包含任何解释或说明。"""
+
+        response = self.llm_client.generate_text(
+            prompt=user_prompt,
+            stream=stream,
+            model=self.polish_model,
+            system_prompt=system_prompt
         )
         
-        return response_text.strip()
+        if stream:
+            return response
+        return response.strip()
 
-    def comment_and_polish(self, source_text: str, translated_text: str) -> Tuple[str, str]:
+    def comment_and_polish(self, source_text: str, translated_text: str, stream: bool = True) -> Tuple[str, str]:
         """
         整合「点评可优化之处 + 基于改进意见润色」两步，供外部一次性调用。
+        这个新版本会分别执行评论和润色两个流程，并存储结果供后续使用。
 
         参数：
             source_text: 原文
             translated_text: 初步译文
+            stream: 是否使用流式输出，默认为True
 
         返回：
-            (最终润色完成的译文, 审校意见)
+            元组 (最终润色完成的译文, 审校意见)，无论是否为流式模式都返回相同格式
         """
-        # 1. 找出可优化之处
-        print("\n正在分析译文，寻找可优化之处...")
-        comments = self.comment_on_translation(source_text, translated_text)
-        print("\n审校意见：")
-        print(comments)
+        if not stream:
+            # 非流式模式保持不变
+            print("\n正在分析译文，寻找可优化之处...")
+            comments = self.comment_on_translation(source_text, translated_text, stream=False)
+            print("\n审校意见：")
+            print(comments)
+            
+            print("\n开始根据审校意见进行润色...")
+            final_text = self.polish_with_comments(translated_text, comments, stream=False)
+            print("\n润色完成！")
+            
+            self.latest_comments = comments
+            self.latest_polished_text = final_text
+            return final_text, comments
         
-        # 2. 根据改进点对译文进行润色
-        print("\n开始根据审校意见进行润色...")
-        final_text = self.polish_with_comments(translated_text, comments)
-        print("\n润色完成！")
+        # 流式模式：分两步执行
+        print("\n=== 正在分析译文，找出可改进之处... ===")
+        comment_chunks = []
+        for chunk in self.comment_on_translation(source_text, translated_text, stream=True):
+            print(chunk, end="", flush=True)
+            comment_chunks.append(chunk)
         
-        return final_text, comments 
+        self.latest_comments = "".join(comment_chunks)
+        
+        print("\n\n=== 分析完成，开始润色... ===")
+        final_chunks = []
+        for chunk in self.polish_with_comments(translated_text, self.latest_comments, stream=True):
+            print(chunk, end="", flush=True)
+            final_chunks.append(chunk)
+        
+        self.latest_polished_text = "".join(final_chunks)
+        print("\n\n=== 润色完成! ===")
+        
+        return self.latest_polished_text, self.latest_comments  # 流式模式下也返回结果
+
+    def get_latest_results(self) -> Tuple[Optional[str], Optional[str]]:
+        """
+        获取最近一次审校和润色的结果。
+
+        返回：
+            元组 (润色后的文本, 审校意见)，如果尚未执行过审校和润色，则相应位置为None
+        """
+        return self.latest_polished_text, self.latest_comments 
