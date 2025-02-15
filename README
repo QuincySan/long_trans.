@@ -299,6 +299,15 @@ python main.py input.md -o output.md -l custom_logs
 使用 deepseek-v3 模型
 python main.py input.md --model deepseek-v3
 
+批量翻译
+python main.py
+
+单文件翻译
+python main.py -f example.md
+
+自定义文件夹：
+python main.py --input-folder custom_input --output-folder custom_output
+
 #### 4. 查看翻译结果
 
 运行成功后，查看 `output.md` 即可。
