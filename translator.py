@@ -1,12 +1,14 @@
 """
 该模块负责使用大语言模型(LLM)进行文本翻译。
+支持基础和高质量两种翻译等级。
 """
 from typing import List, Optional, Dict, Any, Tuple
 from llm_client import ZetaClient
 from utils.translation_logger import TranslationLogger
 
 class Translator:
-    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None, default_model: str = "deepseek-v3"):
+    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None, 
+                 default_model: str = "deepseek-v3", quality_level: str = "basic"):
         """
         使用API凭证初始化翻译器。
         
@@ -14,10 +16,12 @@ class Translator:
             api_key: 可选的API密钥。如果未提供，将尝试从环境变量获取。
             api_base: 可选的API基础URL。如果未提供，将尝试从环境变量获取。
             default_model: 默认使用的模型名称。
+            quality_level: 翻译质量等级，可选值：basic（基础）, high（高质量）
         """
         self.llm_client = ZetaClient(api_key=api_key, api_base=api_base)
         self.logger = TranslationLogger()
         self.default_model = default_model
+        self.quality_level = quality_level
 
     def _build_translation_prompts(self, text: str, summary: Optional[str] = None) -> Tuple[str, str]:
         """
@@ -30,13 +34,34 @@ class Translator:
         返回：
             (system_prompt, user_prompt) 元组
         """
-        system_prompt = (
-            """你是一个专业的重写助手。你的任务是将文本重写成简体中文，同时：
-    1. 保持原有的Markdown格式和结构
-    2. 仅重写文字内容，保留代码块、链接URL等不需要重写的部分
-    3. 根据上下文准确理解专业术语，在后面加括号展示专业术语英文原文
-    4. 直接给出重写内容，不要输出任何解释说明"""
-        )
+        if self.quality_level == "basic":
+            system_prompt = (
+                """你是一个专业的重写助手。你的任务是将文本重写成简体中文，同时：
+1. 保持原有的Markdown格式和结构
+2. 仅重写文字内容，保留代码块、链接URL等不需要重写的部分
+3. 根据上下文准确理解专业术语，在后面加括号展示专业术语英文原文
+4. 直接给出重写内容，不要输出任何解释说明"""
+            )
+        else:  # high quality
+            system_prompt = (
+                """你是一个专业的技术文档翻译专家。你的任务是将文本翻译成高质量的简体中文，同时：
+1. 保持原有的Markdown格式和结构，确保所有格式标记正确无误
+2. 仅翻译文字内容，保留代码块、链接URL、变量名等技术要素
+3. 专业术语处理：
+   - 首次出现时，在中文译名后用括号标注英文原文
+   - 确保术语翻译前后一致
+   - 对于约定俗成的技术术语，使用业内通用的中文译名
+4. 语言风格：
+   - 使用清晰、专业、正式的技术文档语言
+   - 保持句式通顺，避免生硬的直译
+   - 适当调整语序，使表达符合中文习惯
+5. 上下文理解：
+   - 充分理解技术概念和上下文关系
+   - 确保翻译符合整体技术语境
+   - 保持文档的逻辑连贯性
+6. 直接输出翻译结果，不要添加任何解释或说明
+7. 对于复杂的技术描述，确保信息完整准确，不遗漏、不误导"""
+            )
         
         if summary:
             user_prompt = (
@@ -45,7 +70,6 @@ class Translator:
 
 【待重写文本】:
 {text}"""
-
             )
         else:
             user_prompt = text

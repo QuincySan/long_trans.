@@ -77,7 +77,8 @@ def translate_file(
     small_chunk_size: int = 2000,
     api_key: Optional[str] = None,
     api_base: Optional[str] = None,
-    log_dir: str = "logs"
+    log_dir: str = "logs",
+    quality_level: str = "basic"
 ) -> None:
     """
     翻译Markdown文件，同时保持其结构。
@@ -92,13 +93,14 @@ def translate_file(
         api_key: LLM服务的API密钥
         api_base: LLM服务的API基础URL
         log_dir: 日志文件保存目录
+        quality_level: 翻译质量等级，可选值：basic（基础）, high（高质量）
     """
     print(f"\n开始处理文件: {input_file}")
     
     # 初始化组件
     print("初始化组件...")
     chunker = Chunker(large_chunk_size=large_chunk_size, small_chunk_size=small_chunk_size)
-    translator = Translator(api_key=api_key, api_base=api_base)
+    translator = Translator(api_key=api_key, api_base=api_base, quality_level=quality_level)
     summarizer = Summarizer(api_key=api_key, api_base=api_base)
     translator.logger.log_dir = log_dir  # 设置日志目录
     parser = MarkdownParser()
@@ -159,7 +161,8 @@ def process_files(
     small_chunk_size: int = 2000,
     api_key: Optional[str] = None,
     api_base: Optional[str] = None,
-    log_dir: str = "logs"
+    log_dir: str = "logs",
+    quality_level: str = "basic"
 ) -> None:
     """
     处理指定的一个或多个Markdown文件。
@@ -174,6 +177,7 @@ def process_files(
         api_key: LLM服务的API密钥
         api_base: LLM服务的API基础URL
         log_dir: 日志文件保存目录
+        quality_level: 翻译质量等级，可选值：basic（基础）, high（高质量）
     """
     # 确保所有必要的文件夹都存在
     ensure_folders_exist([input_folder, output_folder, log_dir])
@@ -204,7 +208,8 @@ def process_files(
                 small_chunk_size=small_chunk_size,
                 api_key=api_key,
                 api_base=api_base,
-                log_dir=log_dir
+                log_dir=log_dir,
+                quality_level=quality_level
             )
 
             # 将原文件移动到输出文件夹
@@ -283,6 +288,13 @@ def main():
         default="deepseek-v3"
     )
 
+    parser.add_argument(
+        '--quality',
+        help='翻译质量等级 (basic: 基础翻译，适合一般性文档; high: 高质量翻译，适合专业技术文档。默认：basic)',
+        choices=['basic', 'high'],
+        default='basic'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -295,6 +307,7 @@ def main():
             files = [args.file]
         else:
             # 批量模式：处理输入文件夹中的所有.md文件
+            print(f"\n[提示] 使用基础翻译等级。如需高质量翻译，请添加 --quality high 参数")
             files = [f for f in os.listdir(args.input_folder) if f.lower().endswith(".md")]
 
         process_files(
@@ -306,7 +319,8 @@ def main():
             small_chunk_size=args.small_chunk_size,
             api_key=args.api_key,
             api_base=args.api_base,
-            log_dir=args.log_dir
+            log_dir=args.log_dir,
+            quality_level=args.quality
         )
     except Exception as e:
         print(f"错误：{str(e)}")

@@ -372,35 +372,62 @@ FIREWORKS_API_BASE=https://api.fireworks.ai/inference/v1
 python main.py input.md -o output.md
 ```
 
+默认情况下，`python main.py` 使用基础翻译等级，适合一般性文档的翻译。如果需要更高质量的翻译，请使用 `--quality high` 参数。
+
+命令行参数说明：
 - `input.md`：原文 Markdown 文件路径
 - `-o, --output`：输出的翻译后 Markdown 文件
 - `--large-chunk-size`：大块的最大单词数（用于摘要，默认：20000）
-- `--small-chunk-size`：小块的最大单词数（用于翻译，默认：5000）
+- `--small-chunk-size`：小块的最大单词数（用于翻译，默认：2000）
 - `-l, --log-dir`：日志目录，默认 `logs`
+- `--quality`：翻译质量等级，可选值：
+  - `basic`（默认）：基础翻译，适合一般性文档
+    - 保持基本的 Markdown 格式
+    - 基础的专业术语处理
+    - 准确但相对简单的翻译
+  - `high`：高质量翻译，适合专业技术文档
+    - 更严格的格式检查
+    - 更专业的术语翻译
+    - 更自然的中文表达
+    - 更强的上下文理解
+    - 更完整的信息保留
 
-假设有一个文章 example.md 在 articles 目录下
-python main.py example.md
+示例：
 
-或者指定输出文件名（仍然保存在 articles 目录下）
-python main.py example.md -o example_zh.md
-
-基本用法（使用默认日志目录）：
+基本用法（使用默认的基础翻译）：
+```bash
 python main.py input.md -o output.md
+```
 
-指定自定义日志目录：
+或者显式指定基础翻译：
+```bash
+python main.py input.md -o output.md --quality basic
+```
+
+使用高质量翻译：
+```bash
 python main.py input.md -o output.md -l custom_logs
+```
 
-使用 deepseek-v3 模型
-python main.py input.md --model deepseek-v3
+使用 deepseek-v3 模型和高质量翻译：
+```bash
+python main.py input.md --model deepseek-v3 --quality high
+```
 
-批量翻译
-python main.py
+批量翻译（使用高质量翻译）：
+```bash
+python main.py --quality high
+```
 
-单文件翻译
-python main.py -f example.md
+单文件翻译（使用高质量翻译）：
+```bash
+python main.py -f example.md --quality high
+```
 
-自定义文件夹：
-python main.py --input-folder custom_input --output-folder custom_output
+自定义文件夹（使用高质量翻译）：
+```bash
+python main.py --input-folder custom_input --output-folder custom_output --quality high
+```
 
 #### 4. 查看翻译结果
 
