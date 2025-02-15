@@ -1,3 +1,4 @@
+
 ## 基于 LLM 的 Markdown 文本批量翻译
 
 ### 一、项目简介
@@ -6,26 +7,28 @@
 
 #### 项目主要流程
 
-- 读取并解析 Markdown 文件
-- 对全文按「约 2 万词」进行首轮分段（如果原文小于 2 万词，则无需拆分），并对每段进行整体概要。
-- 再次细分翻译分段：对原文（或者分段后的每部分）再按「约 2,000 词」进行二次分段，用于实际调用 LLM 翻译。在翻译时，将对应的摘要内容与 2,000 词分段的文本一并传入 LLM，帮助模型理解上下文。
-- 将翻译结果拼接回原有的 Markdown 格式，形成最终输出。
+- **读取并解析 Markdown 文件**
+- **对全文按「约 2 万词」进行首轮分段**（如果原文小于 2 万词，则无需拆分），并对每段进行整体概要（摘要）。
+- **再次细分翻译分段**：对原文（或者分段后的每部分）再按「约 2,000 词」进行二次分段，用于实际调用 LLM 翻译。在翻译时，将对应的摘要内容与 2,000 词分段的文本一并传入 LLM，帮助模型理解上下文。
+- **将翻译结果拼接回原有的 Markdown 格式**，形成最终输出。
 
-#### 示例：
-- **2 万词内**：不用拆分，先整体做摘要，再按 2,000 词翻译分段，翻译时带上整体摘要。
-- **4 万词**：先拆分为两段，每段 2 万词；对每段做摘要，然后各自再分割成若干个 2,000 词，翻译时带上对应的 2 万词摘要。
+#### 示例
+
+- **2 万词内**：不用拆分，先整体做摘要，再按 2,000 词翻译分段，翻译时带上整体摘要。  
+- **4 万词**：先拆分为两段，每段 2 万词；对每段做摘要，然后各自再分割成若干个 2,000 词，翻译时带上对应的 2 万词摘要。  
 - **6 万词**：分为三段，每段 2 万词；对每段做摘要，翻译时各段分别带其对应的摘要。
 
-#### 单词计数说明：
-- 字：character
-- 词：word
-- **英文文本**：按照标准英文单词进行计数（包括带连字符和数字的单词）
-- **中文文本**：每个汉字视为一个词进行计数
-- **混合文本**：同时支持中英文混合计数
-- **特殊处理**：
-  - 代码块内容不计入单词统计，避免影响分段
-  - 保持 Markdown 格式标记的完整性
-  - 优先在自然段落边界进行分段
+#### 单词计数说明
+
+- **字 (character)**：字符数  
+- **词 (word)**：单词数  
+- **英文文本**：按照标准英文单词进行计数（包括带连字符和数字的单词）  
+- **中文文本**：每个汉字视为一个词进行计数  
+- **混合文本**：同时支持中英文混合计数  
+- **特殊处理**：  
+  - 代码块内容不计入单词统计，避免影响分段  
+  - 保持 Markdown 格式标记的完整性  
+  - 优先在自然段落边界进行分段  
 
 ---
 
@@ -38,24 +41,27 @@
   - 其他可选的文本处理工具，如 `re`、`textwrap` 等
   - 其他必要的工具库（如 `argparse`、`dotenv` 等）
 
-**注意**：本项目对 `openai` 模块进行了自定义封装，实际使用 Fireworks.ai 等服务。调用示例请参考下文。依然符合Openai协议。
+> **注意**：本项目对 `openai` 模块进行了自定义封装，实际使用 Fireworks.ai 等服务。调用示例请参考下文。依然符合 OpenAI 协议。
 
 ---
 
 ### 三、分段与翻译核心思路
 
 #### 1. 第一轮分段（约 2 万词）并摘要
+
 - 读取整个 Markdown 文本，统计词数。
 - 若小于 2 万词，则无需拆分，直接对全文做摘要。
 - 若超过 2 万词，每 2 万词左右切分一次（推荐以自然段边界切分）。
 - 对每个分段调用 LLM 生成段落级摘要。
 
 #### 2. 第二轮分段（约 2,000 词）并翻译
+
 - 对原文或对应的首轮分段再次进行精细切分，每次约 2,000 词左右。
 - 每个 2,000 词分段翻译时，将「对应的摘要」和「分段文本」一起作为 Prompt 发给 LLM，以便模型在理解上下文的基础上进行翻译。
 - 将翻译结果记录下来，并与原文段落/块建立对应关系。
 
 #### 3. 拼接并保持 Markdown 结构
+
 - 最终将所有翻译后的文本按原顺序拼接，保留标题、列表、代码块等 Markdown 结构。
 - 输出完整的翻译后 Markdown 文件。
 
@@ -66,16 +72,17 @@
 ```plaintext
 markdown-translator/
 │
-├── README.md                # 项目说明文档
+├── README.md                # 项目说明文档（即本文件）
 ├── requirements.txt         # 项目依赖库
 ├── main.py                  # 主入口脚本，组织翻译流程
 ├── summarizer.py            # 摘要生成：2 万词级分段 + 调用 LLM
 ├── translator.py            # 翻译处理：2,000 词级分段 + 调用 LLM
+├── reviewer.py              # 评分与润色逻辑（高级翻译流程）
 ├── chunker.py               # 分段策略实现
 ├── llm_client.py            # LLM 客户端封装 (支持多种模型)
-├── to_translate/           # 存放待翻译的 Markdown 文件
-├── translated/             # 存放翻译结果和原文件
-├── logs/                   # 存放翻译日志
+├── to_translate/            # 存放待翻译的 Markdown 文件
+├── translated/              # 存放翻译结果和原文件
+├── logs/                    # 存放翻译日志
 └── utils/
     ├── markdown_parser.py   # Markdown 解析与还原
     └── translation_logger.py # 翻译日志记录
@@ -85,7 +92,7 @@ markdown-translator/
 
 ### 五、示例流程代码片段
 
-#### `summarizer.py`（简化示例）
+#### **summarizer.py（简化示例）**
 
 ```python
 from typing import Optional
@@ -113,8 +120,8 @@ class Summarizer:
             生成的摘要文本
         """
         prompt = (
-            "请对以下文本生成一个简要的摘要。"
-            "摘要应不超过500字，并使用中文输出：\n\n"
+            "请对以下文本生成一个简要的摘要，"
+            "尽量提炼出关键内容，控制在500字以内，并使用中文输出：\n\n"
             f"{text}"
         )
         
@@ -122,15 +129,15 @@ class Summarizer:
         summary = self.llm_client.generate_text(
             prompt=prompt,
             stream=False,
-            model="claude-3-5-sonnet-20241022"
+            model="claude-3-5-sonnet-20241022"  # 举例，实际模型可灵活替换
         )
         return summary.strip()
 ```
 
-#### `translator.py`（简化示例）
+#### **translator.py（简化示例）**
 
 ```python
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional
 from llm_client import ZetaClient
 from utils.translation_logger import TranslationLogger
 
@@ -147,6 +154,27 @@ class Translator:
         self.llm_client = ZetaClient(api_key=api_key, api_base=api_base)
         self.logger = TranslationLogger()
         self.default_model = default_model
+
+    def _build_translation_prompts(self, text: str, summary: Optional[str]) -> tuple:
+        # 根据需要构建 System Prompt 和 User Prompt
+        system_prompt = "你是一位专业的 Markdown 翻译助手..."
+        user_prompt = (
+            f"请参考以下摘要，以帮助你理解上下文：\n{summary}\n\n"
+            "以下文本需要保持 Markdown 结构并进行准确、流畅的翻译：\n"
+            f"{text}"
+        )
+        return system_prompt, user_prompt
+
+    def _get_response_format(self, model: str) -> str:
+        # 不同模型可能需要不同的 response_format
+        return "text"
+
+    def _process_stream_response(self, response_iterator):
+        # 将流式响应拼接为完整文本
+        final_text = ""
+        for chunk in response_iterator:
+            final_text += chunk
+        return final_text
 
     def translate_text(
         self,
@@ -208,21 +236,20 @@ class Translator:
             翻译后的文本段落列表
         """
         model = model or self.default_model
-        total = len(texts)
         results = []
         
-        for i, text in enumerate(texts, 1):
+        for text in texts:
             result = self.translate_text(text, model=model, summary=summary)
             results.append(result)
             
         return results
 ```
 
-#### `chunker.py`（简化示例）
+#### **chunker.py（简化示例）**
 
 ```python
-from typing import List
 import re
+from typing import List
 
 class Chunker:
     def __init__(self, large_chunk_size: int = 20000, small_chunk_size: int = 2000):
@@ -248,12 +275,17 @@ class Chunker:
         """
         return self._split_text(text, self.small_chunk_size)
 
+    def _count_words(self, text: str) -> int:
+        # 简易词数统计逻辑，可根据中英文混合进行扩展
+        words = re.findall(r'\S+', text)
+        return len(words)
+
     def _split_text(self, text: str, max_size: int) -> List[str]:
         """
-        将输入文本分割成块，同时保持Markdown结构。
+        将输入文本分割成块，同时保持Markdown结构。可在自然段边界或标题边界处尽量拆分。
         """
-        # 如果文本较短，直接返回
-        if self._count_words(text) < max_size * 0.8:
+        # 若文本较短，则无需分段
+        if self._count_words(text) <= max_size:
             return [text]
 
         # 按标题分割，保持"标题+内容"作为最小单元
@@ -264,7 +296,6 @@ class Chunker:
             if block.strip():
                 section_blocks.append(block)
 
-        # 智能合并section_blocks
         chunks = []
         current_chunk = ""
         current_word_count = 0
@@ -286,17 +317,18 @@ class Chunker:
         return chunks
 ```
 
-#### `main.py`：主流程示例
+#### **main.py：主流程示例**
 
 ```python
+from typing import Optional
 from chunker import Chunker
 from translator import Translator
 from summarizer import Summarizer
 
 def translate_file(
     input_file: str,
-    model: str,
     output_file: str,
+    model: str = "deepseek-v3",
     large_chunk_size: int = 20000,
     small_chunk_size: int = 2000,
     api_key: Optional[str] = None,
@@ -307,9 +339,8 @@ def translate_file(
     翻译Markdown文件，同时保持其结构。
     使用两级分段策略：先按大块生成摘要，再按小块进行翻译。
     """
-    # 初始化组件
     chunker = Chunker(large_chunk_size=large_chunk_size, small_chunk_size=small_chunk_size)
-    translator = Translator(api_key=api_key, api_base=api_base)
+    translator = Translator(api_key=api_key, api_base=api_base, default_model=model)
     summarizer = Summarizer(api_key=api_key, api_base=api_base)
     translator.logger.log_dir = log_dir
 
@@ -317,30 +348,27 @@ def translate_file(
     with open(input_file, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # 第一级分段（约20,000词/段）
+    # 首轮（大块）分段
     word_count = chunker._count_words(content)
     if word_count <= large_chunk_size:
         large_chunks = [content]
     else:
         large_chunks = chunker.split_for_summary(content)
 
-    # 处理每个大段（生成摘要、二次分段、翻译）
     all_translated_chunks = []
-    for i, large_chunk in enumerate(large_chunks, 1):
-        # 1. 为当前大块生成摘要
+    for large_chunk in large_chunks:
+        # 1. 生成摘要
         summary = summarizer.summarize(large_chunk)
         
-        # 2. 将大块分成小块（约2,000词）
+        # 2. 二次分段（小块，用于翻译）
         small_chunks = chunker.split_for_translation(large_chunk)
         
-        # 3. 使用摘要作为上下文翻译所有小块
+        # 3. 翻译每个小块
         translated_chunks = translator.translate_batch(small_chunks, summary=summary)
         all_translated_chunks.extend(translated_chunks)
 
-    # 合并所有翻译结果
-    final_text = '\n\n'.join(all_translated_chunks)
-
-    # 保存结果
+    # 将翻译结果合并并写入文件
+    final_text = "\n\n".join(all_translated_chunks)
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(final_text)
 ```
@@ -349,95 +377,180 @@ def translate_file(
 
 ### 六、安装与使用
 
-#### 1. 安装依赖
-
-在项目根目录下，运行：
+#### **1. 安装依赖**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-#### 2. 配置环境变量
+#### **2. 配置环境变量**
 
-根据实际需求，将 Fireworks.ai 或其他 LLM 服务的 API Key 写入环境变量或使用 `.env` 文件：
+根据实际需求，将 Fireworks.ai 或其他 LLM 服务的 API Key 写入环境变量或使用 .env 文件：
 
 ```plaintext
 FIREWORKS_API_KEY=YOUR_API_KEY_HERE
 FIREWORKS_API_BASE=https://api.fireworks.ai/inference/v1
 ```
 
-#### 3. 运行翻译脚本
+#### **3. 运行翻译脚本**
 
 ```bash
-python main.py input.md -o output.md
+python main.py input.md output.md
 ```
 
-默认情况下，`python main.py` 使用基础翻译等级，适合一般性文档的翻译。如果需要更高质量的翻译，请使用 `--quality high` 参数。
+示例说明：
 
-命令行参数说明：
-- `input.md`：原文 Markdown 文件路径
-- `-o, --output`：输出的翻译后 Markdown 文件
-- `--large-chunk-size`：大块的最大单词数（用于摘要，默认：20000）
-- `--small-chunk-size`：小块的最大单词数（用于翻译，默认：2000）
-- `-l, --log-dir`：日志目录，默认 `logs`
-- `--quality`：翻译质量等级，可选值：
-  - `basic`（默认）：基础翻译，适合一般性文档
-    - 保持基本的 Markdown 格式
-    - 基础的专业术语处理
-    - 准确但相对简单的翻译
-  - `high`：高质量翻译，适合专业技术文档
-    - 更严格的格式检查
-    - 更专业的术语翻译
-    - 更自然的中文表达
-    - 更强的上下文理解
-    - 更完整的信息保留
+- `input.md`: 原文 Markdown 文件路径
+- `output.md`: 输出的翻译后 Markdown 文件
 
-示例：
-
-基本用法（使用默认的基础翻译）：
-```bash
-python main.py input.md -o output.md
-```
-
-或者显式指定基础翻译：
-```bash
-python main.py input.md -o output.md --quality basic
-```
-
-使用高质量翻译：
-```bash
-python main.py input.md -o output.md -l custom_logs
-```
-
-使用 deepseek-v3 模型和高质量翻译：
-```bash
-python main.py input.md --model deepseek-v3 --quality high
-```
-
-批量翻译（使用高质量翻译）：
-```bash
-python main.py --quality high
-```
-
-单文件翻译（使用高质量翻译）：
-```bash
-python main.py -f example.md --quality high
-```
-
-自定义文件夹（使用高质量翻译）：
-```bash
-python main.py --input-folder custom_input --output-folder custom_output --quality high
-```
-
-#### 4. 查看翻译结果
-
-运行成功后，查看 `output.md` 即可。
+你也可以添加更多可选参数（如 `--model`、`--large-chunk-size`、`--small-chunk-size`、`--log-dir` 等）到命令行中进行控制。
 
 ---
 
-### 七、后续改进与注意事项
+### 七、高级翻译流程：翻译 + 自动评分 + 润色
+
+在上述基础功能之上，你还可以引入「自动评分与润色」的高级翻译流程。具体思路如下：
+
+1. **初次翻译**：先对每个 2,000 词小块进行一次常规翻译。
+2. **自动评分**：对比「原文」与「译文」，由 LLM 生成「译文评分」。评分可从以下五个维度（示例）给出 0~10 分：
+   - 准确性 (Accuracy)
+   - 完整性 (Completeness)
+   - 流畅性 (Fluency)
+   - 术语与用词 (Terminology & Word Choice)
+   - 风格与语气 (Style & Tone)
+
+   总分即上述五个维度的合计（满分 50 分）。若总分低于 45，则需要将「原文、译文、评分结果」交给后续模型进行**润色或重译**。
+
+3. **润色/重译**：根据评分结果，若得分较低，可以让 LLM 根据评分中的问题，对译文进行二次修订。
+
+#### **评分 Prompt（简要示例）**
+
+```plaintext
+你是一位专业的译文审校员。请对以下原文与译文进行比对，根据以下五个维度评分（每个维度0~10分），并输出JSON格式的结果：
+
+维度：
+1. accuracy (准确性)
+2. completeness (完整性)
+3. fluency (流畅性)
+4. terminology (术语与用词)
+5. style (风格与语气)
+
+**请输出如下JSON，不要输出多余文字**：
+{
+  "accuracy": 10,
+  "accuracy_comment": "示例评语",
+  "completeness": 10,
+  "completeness_comment": "示例评语",
+  "fluency": 10,
+  "fluency_comment": "示例评语",
+  "terminology": 10,
+  "terminology_comment": "示例评语",
+  "style": 10,
+  "style_comment": "示例评语",
+  "total_score": 50,
+  "overall_comment": "示例评语"
+}
+
+以下是原文：
+---
+{source_text}
+---
+
+以下是译文：
+---
+{translated_text}
+---
+```
+
+#### **评分结果解析示例 (Python)**
+
+```python
+import json
+
+def parse_rating_response(model_response: str) -> dict:
+    """
+    model_response: 预期为符合上面JSON格式的字符串
+    return: Python字典，包含各维度评分和总分等
+    """
+    try:
+        data = json.loads(model_response)
+        # 可以增加字段校验
+        return data
+    except json.JSONDecodeError:
+        # 解析失败
+        return {}
+```
+
+#### **在代码层面做分数判断并决定是否润色**
+
+```python
+def process_translation_block(source_text: str, translated_text: str) -> str:
+    """
+    如果评分>=45 分，则直接返回译文；否则，将原文、译文和评分结果交给模型润色后再返回。
+    """
+    # 1. 构造评分请求给 LLM
+    rating_prompt = f"""
+    你是一位专业的译文审校员。请对以下原文与译文进行比对...
+    ...输出JSON格式结果(省略)...
+    原文:
+    ---
+    {source_text}
+    ---
+    译文:
+    ---
+    {translated_text}
+    ---
+    """
+    model_response = call_llm_api(rating_prompt)
+    
+    # 2. 解析JSON评分
+    rating_result = parse_rating_response(model_response)
+    total_score = rating_result.get("total_score", 0)
+    
+    # 3. 判断是否需要润色
+    if total_score >= 45:
+        # 分数合格，无需润色
+        return translated_text
+    else:
+        # 分数不合格，将原文、译文、评分结果交给后续模型润色
+        revise_prompt = f"""
+        以下是原文：
+        ---
+        {source_text}
+        ---
+        现有译文：
+        ; ---
+        {translated_text}
+        ---
+        以下是评分结果：
+        {json.dumps(rating_result, ensure_ascii=False, indent=2)}
+
+        请基于以上信息，对译文进行润色，特别针对评分结果中提到的问题做改进。
+        """
+        revised_translation = call_llm_api(revise_prompt)
+        return revised_translation
+```
+
+以上示例展示了核心逻辑：
+
+1. **结构化评分**（JSON）
+2. **解析分数**
+3. **if / else 分支处理**，对不合格译文做润色或重译
+
+在大规模分段翻译中，你可以针对每个 2,000 词小块的译文做评分，若不合格再润色；最终再把所有通过评分或润色后的内容合并。此流程能显著提高整体翻译质量，但也会带来额外的 API 调用成本和时间开销。
+
+---
+
+### 八、后续改进与注意事项
 
 - **摘要策略**：可根据文档类型、语言特点进一步优化摘要提示。
 - **Markdown 解析**：若对结构保留要求较高，需使用 Markdown AST 解析，再分段处理，以防断行、代码块等格式混乱。
 - **容错与重试机制**：网络调用、超时以及模型返回异常等情况需要结合实际使用场景做好重试或异常处理。
-- **批量处理**：可在命令行参数中指定多个 Markdown 文件，批量翻译。
+- **自动评分与润色**：
+  - 建议使用 JSON 结构化评分，方便代码自动解析
+  - 可以根据评分结果做多轮润色
+  - 也可将评分日志写入数据库或文件，便于后续质量分析
+- **成本与性能**：自动评分和润色会增加额外的模型调用次数，需要在质量与成本之间做平衡。
+
+以上即为本项目的使用说明，以及在「翻译+自动评分+润色」流程上的扩展思路。希望能帮助你在批量翻译 Markdown 文档时，实现更高质量、更自动化的处理体验。
+

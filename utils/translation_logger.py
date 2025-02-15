@@ -39,7 +39,9 @@ class TranslationLogger:
                    translated_text: str, 
                    segment_index: int,
                    total_segments: int,
-                   metadata: Optional[Dict] = None) -> None:
+                   metadata: Optional[Dict] = None,
+                   rating_result: Optional[Dict] = None,
+                   polished_text: Optional[str] = None) -> None:
         """
         记录一个翻译片段。
         
@@ -49,6 +51,8 @@ class TranslationLogger:
             segment_index: 当前片段索引
             total_segments: 总片段数
             metadata: 额外的元数据信息
+            rating_result: 翻译评分结果（仅在高质量模式下使用）
+            polished_text: 润色后的文本（仅在需要润色时使用）
         """
         segment = {
             "segment_index": segment_index,
@@ -61,6 +65,16 @@ class TranslationLogger:
         if metadata:
             segment["metadata"] = metadata
             
+        # 添加评分和润色信息（如果有）
+        if rating_result:
+            segment["rating"] = rating_result
+            
+        if polished_text:
+            segment["polished_text"] = polished_text
+            segment["final_text"] = polished_text
+        else:
+            segment["final_text"] = translated_text
+            
         self.segments.append(segment)
         self._save_log()
         
@@ -68,11 +82,50 @@ class TranslationLogger:
         """将日志保存到文件。"""
         log_data = {
             "translation_segments": self.segments,
-            "last_updated": datetime.now().isoformat()
+            "last_updated": datetime.now().isoformat(),
+            "statistics": self._calculate_statistics()
         }
         
         with open(self.current_log_file, 'w', encoding='utf-8') as f:
             json.dump(log_data, f, ensure_ascii=False, indent=2)
+            
+    def _calculate_statistics(self) -> Dict:
+        """
+        计算翻译统计信息。
+        
+        返回：
+            包含统计信息的字典
+        """
+        total_segments = len(self.segments)
+        segments_with_rating = [s for s in self.segments if "rating" in s]
+        segments_with_polish = [s for s in self.segments if "polished_text" in s]
+        
+        # 计算平均评分（如果有评分）
+        avg_scores = {}
+        if segments_with_rating:
+            score_sums = {
+                "accuracy": 0,
+                "completeness": 0,
+                "fluency": 0,
+                "terminology": 0,
+                "style": 0,
+                "total_score": 0
+            }
+            
+            for segment in segments_with_rating:
+                rating = segment["rating"]
+                for key in score_sums:
+                    score_sums[key] += rating.get(key, 0)
+            
+            for key in score_sums:
+                avg_scores[f"avg_{key}"] = round(score_sums[key] / len(segments_with_rating), 2)
+        
+        return {
+            "total_segments": total_segments,
+            "segments_with_rating": len(segments_with_rating),
+            "segments_with_polish": len(segments_with_polish),
+            "average_scores": avg_scores if segments_with_rating else None
+        }
             
     def get_segment(self, segment_index: int) -> Optional[Dict]:
         """
