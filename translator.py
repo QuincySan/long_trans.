@@ -42,10 +42,10 @@ class Translator:
         if summary:
             user_prompt = (
                 f"""【背景摘要】:
-{summary}
+{{summary}}
 
 【待翻译文本】:
-{text}"""
+{{text}}"""
 
             )
         else:
