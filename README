@@ -296,6 +296,9 @@ python main.py input.md -o output.md
 指定自定义日志目录：
 python main.py input.md -o output.md -l custom_logs
 
+使用 deepseek-v3 模型
+python main.py input.md --model deepseek-v3
+
 #### 4. 查看翻译结果
 
 运行成功后，查看 `output.md` 即可。

@@ -1,7 +1,7 @@
 """
 该模块负责使用大语言模型(LLM)进行文本翻译。
 """
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from llm_client import ZetaClient
 from utils.translation_logger import TranslationLogger
 
@@ -19,38 +19,36 @@ class Translator:
         self.logger = TranslationLogger()
         self.default_model = default_model
 
-    def _build_translation_prompt(self, text: str, summary: Optional[str] = None) -> str:
+    def _build_translation_prompts(self, text: str, summary: Optional[str] = None) -> Tuple[str, str]:
         """
-        构建翻译提示。
+        构建翻译的system prompt和user prompt。
         
         参数：
             text: 要翻译的文本
             summary: 可选的上下文摘要
             
         返回：
-            构建好的提示文本
+            (system_prompt, user_prompt) 元组
         """
+        system_prompt = (
+            "你是一个专业的翻译助手。你的任务是将文本准确翻译成简体中文，同时：\n"
+            "1. 保持原有的Markdown格式和结构\n"
+            "2. 仅翻译文字内容，保留代码块、链接URL等不需要翻译的部分\n"
+            "3. 根据上下文准确理解并翻译专业术语，在后面加括号展示专业术语英文原文\n"
+            "4. 直接给出翻译内容，不要输出任何解释\n"
+            "5. 完整翻译内容，不要节约篇幅"
+        )
+        
         if summary:
-            return (
-                "你是一个专业的翻译助手。请根据以下背景摘要，翻译给定的**全部**Markdown文本。\n\n"
+            user_prompt = (
                 f"【背景摘要】:\n{summary}\n\n"
                 "【待翻译文本】:\n"
-                f"{text}\n\n"
-                "请注意：\n"
-                "1. 保持原有的Markdown格式和结构\n"
-                "2. 仅翻译文字内容，保留代码块、链接URL等不需要翻译的部分\n"
-                "3. 根据上下文准确理解并翻译专业术语，在后面加括号展示专业术语英文原文\n"
-                "4. 请直接给出翻译内容，不要输出任何解释。\n"
-                "5. 请完整翻译内容，不要节约篇幅。\n"
+                f"{text}"
             )
         else:
-            return (
-                f"""
-                请尊重原意，保持原有格式不变，用简体中文重写下面的内容：
-
-                需要翻译的文本：{text}
-                """
-            )
+            user_prompt = text
+        
+        return system_prompt, user_prompt
 
     def _process_stream_response(self, response_iterator, print_progress: bool = True) -> str:
         """
@@ -133,14 +131,15 @@ class Translator:
         print("\n开始翻译新的文本块...")
         print("原文:\n", text[:100], "..." if len(text) > 100 else "")
         
-        prompt = self._build_translation_prompt(text, summary)
+        system_prompt, user_prompt = self._build_translation_prompts(text, summary)
         response_format = self._get_response_format(model)
 
         if stream:
             response_iterator = self.llm_client.generate_text(
-                prompt=prompt,
+                prompt=user_prompt,
                 stream=True,
                 model=model,
+                system_prompt=system_prompt,
                 response_format=response_format
             )
             final_text = self._process_stream_response(response_iterator)
@@ -148,9 +147,10 @@ class Translator:
             return final_text
         else:
             return self.llm_client.generate_text(
-                prompt=prompt,
+                prompt=user_prompt,
                 stream=False,
                 model=model,
+                system_prompt=system_prompt,
                 response_format=response_format
             )
 
@@ -161,7 +161,7 @@ class Translator:
         summary: Optional[str] = None
     ) -> List[str]:
         """
-        批量翻译文本段落。
+        批量翻译文本段落。使用 self.translate_text。
         
         参数：
             texts: 要翻译的文本段落列表

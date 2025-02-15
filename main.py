@@ -52,6 +52,7 @@ def process_large_chunk(
 
 def translate_file(
     input_file: str,
+    model: str,
     output_file: Optional[str] = None,
     large_chunk_size: int = 20000,
     small_chunk_size: int = 2000,
@@ -65,6 +66,7 @@ def translate_file(
     
     参数：
         input_file: 输入Markdown文件的路径（相对于articles目录）
+        model: 选择的模型
         output_file: 输出文件的路径（默认：input_file_translated.md）
         large_chunk_size: 大块的最大单词数（用于摘要）
         small_chunk_size: 小块的最大单词数（用于翻译）
@@ -191,11 +193,18 @@ def main():
         default='logs'
     )
 
+    parser.add_argument(
+        '--model',
+        help='选择使用的模型 (claude-3-5-sonnet-20241022, deepseek-v3, gemini-2.0-pro-exp-02-05)',
+        default="claude-3-5-sonnet-20241022"
+    )
+
     args = parser.parse_args()
 
     try:
         translate_file(
             input_file=args.input_file,
+            model=args.model,
             output_file=args.output,
             large_chunk_size=args.large_chunk_size,
             small_chunk_size=args.small_chunk_size,

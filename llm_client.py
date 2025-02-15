@@ -100,6 +100,22 @@ class FireworksClient(LLMClient):
 class ZetaClient(LLMClient):
     """Zeta API客户端实现"""
     
+    # 添加模型配置映射
+    SUPPORTED_MODELS = {
+        "claude-3-5-sonnet-20241022": {
+            "max_tokens": 4096,
+            "default_temp": 0.6,
+        },
+        "deepseek-v3": {
+            "max_tokens": 4096,
+            "default_temp": 0.7,
+        },
+        "gemini-2.0-pro-exp-02-05": {
+            "max_tokens": 4096,
+            "default_temp": 0.7,
+        }
+    }
+    
     def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None):
         """
         初始化Zeta客户端
@@ -121,7 +137,7 @@ class ZetaClient(LLMClient):
         prompt: str, 
         stream: bool = True,
         model: str = "claude-3-5-sonnet-20241022",
-        temperature: float = 0.6,
+        temperature: Optional[float] = None,
         system_prompt: str = "",
         response_format: Optional[Dict[str, Any]] = None
     ) -> str | Generator:
@@ -132,22 +148,29 @@ class ZetaClient(LLMClient):
             prompt: 输入提示词
             stream: 是否使用流式输出
             model: 使用的模型名称
-            temperature: 温度参数，控制输出的随机性
+            temperature: 温度参数，控制输出的随机性。如果未指定，使用模型默认值
             system_prompt: 系统提示词
             response_format: 响应格式设置
             
         返回:
             生成的文本或生成器
         """
+        if model not in self.SUPPORTED_MODELS:
+            raise ValueError(f"不支持的模型: {model}。支持的模型包括: {', '.join(self.SUPPORTED_MODELS.keys())}")
+            
+        config = self.SUPPORTED_MODELS[model]
+        temp = temperature if temperature is not None else config["default_temp"]
+        
         completion = self.client.chat.completions.create(
             model=model,
             stream=stream,
-            temperature=temperature,
+            temperature=temp,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
-            response_format=response_format
+            response_format=response_format,
+            max_tokens=config["max_tokens"]
         )
         
         if stream:
