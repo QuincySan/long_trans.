@@ -88,169 +88,262 @@ markdown-translator/
 #### `summarizer.py`（简化示例）
 
 ```python
-from llm_client import call_llm
+from typing import Optional
+from llm_client import ZetaClient
 
-def summarize_long_text(text: str) -> str:
-    """
-    调用 LLM 对约 2 万词的文本进行摘要。
-    返回摘要字符串。
-    """
-    prompt = (
-        "以下是一段较长的文本，请生成一个简要的摘要，"
-        "包含主要主题、关键人物、核心概念等：\n\n"
-        f"{text}\n\n"
-        "请注意：需要中文输出，且摘要应不超过 500 词。"
-    )
-    summary = call_llm(prompt)
-    return summary
+class Summarizer:
+    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None):
+        """
+        初始化摘要生成器。
+        
+        参数：
+            api_key: LLM服务的API密钥
+            api_base: LLM服务的API基础URL
+        """
+        self.llm_client = ZetaClient(api_key=api_key, api_base=api_base)
+
+    def summarize(self, text: str) -> str:
+        """
+        对输入文本生成摘要。
+        
+        参数：
+            text: 要生成摘要的Markdown文本
+            
+        返回：
+            生成的摘要文本
+        """
+        prompt = (
+            "请对以下文本生成一个简要的摘要。"
+            "摘要应不超过500字，并使用中文输出：\n\n"
+            f"{text}"
+        )
+        
+        # 使用非流式输出，直接获取完整摘要
+        summary = self.llm_client.generate_text(
+            prompt=prompt,
+            stream=False,
+            model="claude-3-5-sonnet-20241022"
+        )
+        return summary.strip()
 ```
 
 #### `translator.py`（简化示例）
 
 ```python
-from llm_client import call_llm
+from typing import List, Optional, Dict, Any, Tuple
+from llm_client import ZetaClient
+from utils.translation_logger import TranslationLogger
 
-def translate_segment(segment: str, summary: str) -> str:
-    """
-    调用 LLM 对分段文本进行翻译，summary 为本段对应的前置摘要上下文。
-    返回翻译结果。
-    """
-    prompt = (
-        "你是一个专业的翻译助手，请根据下方摘要信息，对后续Markdown文本进行翻译。\n"
-        "在翻译时，请尽可能保留Markdown格式，包括标题、列表、代码块等结构。\n\n"
-        f"【本段摘要】:\n{summary}\n\n"
-        f"【待翻译文本】:\n{segment}\n\n"
-        "请注意：仅翻译正文内容，Markdown结构与标记请原样保留。"
-    )
-    translated = call_llm(prompt)
-    return translated
+class Translator:
+    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None, default_model: str = "deepseek-v3"):
+        """
+        使用API凭证初始化翻译器。
+        
+        参数：
+            api_key: 可选的API密钥。如果未提供，将尝试从环境变量获取。
+            api_base: 可选的API基础URL。如果未提供，将尝试从环境变量获取。
+            default_model: 默认使用的模型名称。
+        """
+        self.llm_client = ZetaClient(api_key=api_key, api_base=api_base)
+        self.logger = TranslationLogger()
+        self.default_model = default_model
+
+    def translate_text(
+        self,
+        text: str,
+        stream: bool = True,
+        model: Optional[str] = None,
+        summary: Optional[str] = None
+    ) -> str:
+        """
+        翻译给定的文本，同时保持Markdown格式。
+        
+        参数：
+            text: 要翻译的文本（Markdown格式）
+            stream: 是否使用流式模式
+            model: 使用的模型名称，如果未提供则使用默认模型
+            summary: 可选的上下文摘要
+            
+        返回：
+            保持Markdown格式的翻译后文本
+        """
+        model = model or self.default_model
+        system_prompt, user_prompt = self._build_translation_prompts(text, summary)
+        response_format = self._get_response_format(model)
+
+        if stream:
+            response_iterator = self.llm_client.generate_text(
+                prompt=user_prompt,
+                stream=True,
+                model=model,
+                system_prompt=system_prompt,
+                response_format=response_format
+            )
+            final_text = self._process_stream_response(response_iterator)
+            return final_text
+        else:
+            return self.llm_client.generate_text(
+                prompt=user_prompt,
+                stream=False,
+                model=model,
+                system_prompt=system_prompt,
+                response_format=response_format
+            )
+
+    def translate_batch(
+        self,
+        texts: List[str],
+        model: Optional[str] = None,
+        summary: Optional[str] = None
+    ) -> List[str]:
+        """
+        批量翻译文本段落。使用 self.translate_text。
+        
+        参数：
+            texts: 要翻译的文本段落列表
+            model: 使用的模型名称，如果未提供则使用默认模型
+            summary: 可选的上下文摘要
+            
+        返回：
+            翻译后的文本段落列表
+        """
+        model = model or self.default_model
+        total = len(texts)
+        results = []
+        
+        for i, text in enumerate(texts, 1):
+            result = self.translate_text(text, model=model, summary=summary)
+            results.append(result)
+            
+        return results
 ```
 
-#### 3. chunker.py：分段逻辑
-
-此处我们演示了两个函数：
-- `split_into_large_chunks(text, max_size=20000)`：按 ~20,000 词分成大块，用于"总结"阶段；
-- `split_into_small_chunks(text, max_size=3000)`：按 ~3,000 词分成小块，用于"翻译"阶段。
-
-以下是代码示例：
+#### `chunker.py`（简化示例）
 
 ```python
+from typing import List
 import re
 
-def split_into_large_chunks(text, max_size=20000):
-    """
-    按约 20,000 词为单位进行大块拆分，尽量在段落边界断开。
-    若总长度 <= 20,000，不拆分；否则拆分多个块。
-    返回一个列表，每个元素是一段文本。
-    """
-    # 去掉多余空行，以便后续处理
-    paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
+class Chunker:
+    def __init__(self, large_chunk_size: int = 20000, small_chunk_size: int = 2000):
+        """
+        使用最大块大小初始化分段器。
+        
+        参数：
+            large_chunk_size: 大块的最大单词数（用于摘要）
+            small_chunk_size: 小块的最大单词数（用于翻译）
+        """
+        self.large_chunk_size = large_chunk_size
+        self.small_chunk_size = small_chunk_size
 
-    chunks = []
-    current_chunk = []
-    current_length = 0
+    def split_for_summary(self, text: str) -> List[str]:
+        """
+        将输入文本分割成大块（约20,000词），用于生成摘要。
+        """
+        return self._split_text(text, self.large_chunk_size)
 
-    for para in paragraphs:
-        para_length = len(para)
-        # 如果加上这个段落后超过max_size，则先把当前块加入chunks，再新建块
-        if current_length + para_length > max_size and current_chunk:
-            chunks.append("\n".join(current_chunk))
-            current_chunk = [para]
-            current_length = para_length
-        else:
-            current_chunk.append(para)
-            current_length += para_length
-    
-    # 最后一块
-    if current_chunk:
-        chunks.append("\n".join(current_chunk))
+    def split_for_translation(self, text: str) -> List[str]:
+        """
+        将输入文本分割成小块（约2,000词），用于翻译。
+        """
+        return self._split_text(text, self.small_chunk_size)
 
-    return chunks
+    def _split_text(self, text: str, max_size: int) -> List[str]:
+        """
+        将输入文本分割成块，同时保持Markdown结构。
+        """
+        # 如果文本较短，直接返回
+        if self._count_words(text) < max_size * 0.8:
+            return [text]
 
+        # 按标题分割，保持"标题+内容"作为最小单元
+        raw_sections = re.split(r'(#{1,6}\s[^\n]+\n)', text)
+        section_blocks = []
+        
+        for block in raw_sections:
+            if block.strip():
+                section_blocks.append(block)
 
-def split_into_small_chunks(text, max_size=3000):
-    """
-    按约 3,000 词为单位进行小块拆分，尽量在段落边界断开。
-    返回一个列表，每个元素是一段文本。
-    """
-    paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
+        # 智能合并section_blocks
+        chunks = []
+        current_chunk = ""
+        current_word_count = 0
 
-    chunks = []
-    current_chunk = []
-    current_length = 0
+        for block in section_blocks:
+            block_word_count = self._count_words(block)
+            if current_word_count + block_word_count <= max_size:
+                current_chunk += block
+                current_word_count += block_word_count
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                current_chunk = block
+                current_word_count = block_word_count
 
-    for para in paragraphs:
-        para_length = len(para)
-        if current_length + para_length > max_size and current_chunk:
-            chunks.append("\n".join(current_chunk))
-            current_chunk = [para]
-            current_length = para_length
-        else:
-            current_chunk.append(para)
-            current_length += para_length
+        if current_chunk:
+            chunks.append(current_chunk)
 
-    if current_chunk:
-        chunks.append("\n".join(current_chunk))
-
-    return chunks
+        return chunks
 ```
 
-
-#### 6. main.py：主流程示例
+#### `main.py`：主流程示例
 
 ```python
-import os
-from chunker import split_into_large_chunks, split_into_small_chunks
-from summarizer import summarize_text
-from translator import translate_segment
+from chunker import Chunker
+from translator import Translator
+from summarizer import Summarizer
 
-def main(input_file, output_file):
-    # 1. 读取 Markdown 文件
-    with open(input_file, "r", encoding="utf-8") as f:
-        raw_text = f.read()
-    
-    text_length = len(raw_text)
-    
-    # 2. 判断是否需要拆分大块
-    if text_length <= 20000:
-        large_chunks = [raw_text]
+def translate_file(
+    input_file: str,
+    model: str,
+    output_file: str,
+    large_chunk_size: int = 20000,
+    small_chunk_size: int = 2000,
+    api_key: Optional[str] = None,
+    api_base: Optional[str] = None,
+    log_dir: str = "logs"
+) -> None:
+    """
+    翻译Markdown文件，同时保持其结构。
+    使用两级分段策略：先按大块生成摘要，再按小块进行翻译。
+    """
+    # 初始化组件
+    chunker = Chunker(large_chunk_size=large_chunk_size, small_chunk_size=small_chunk_size)
+    translator = Translator(api_key=api_key, api_base=api_base)
+    summarizer = Summarizer(api_key=api_key, api_base=api_base)
+    translator.logger.log_dir = log_dir
+
+    # 读取输入文件
+    with open(input_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 第一级分段（约20,000词/段）
+    word_count = chunker._count_words(content)
+    if word_count <= large_chunk_size:
+        large_chunks = [content]
     else:
-        large_chunks = split_into_large_chunks(raw_text, max_size=20000)
-    
-    all_translated_texts = []
-    
-    # 3. 对每个大块分别进行总结，然后再拆分小块进行翻译
-    for idx, chunk in enumerate(large_chunks):
-        print(f"处理第 {idx+1} 个大块，长度：{len(chunk)}")
-        
-        summary = summarize_text(chunk)
-        
-        small_chunks = split_into_small_chunks(chunk, max_size=3000)
-        
-        translated_sub_blocks = []
-        
-        for sidx, sub_chunk in enumerate(small_chunks):
-            print(f"  翻译大块{idx+1}的第 {sidx+1} 个小块，长度：{len(sub_chunk)}")
-            translated_text = translate_segment(sub_chunk, summary)
-            translated_sub_blocks.append(translated_text)
-        
-        translated_chunk = "\n".join(translated_sub_blocks)
-        all_translated_texts.append(translated_chunk)
-    
-    final_translated_text = "\n".join(all_translated_texts)
-    
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(final_translated_text)
-    
-    print(f"翻译完成！结果已输出到：{output_file}")
+        large_chunks = chunker.split_for_summary(content)
 
+    # 处理每个大段（生成摘要、二次分段、翻译）
+    all_translated_chunks = []
+    for i, large_chunk in enumerate(large_chunks, 1):
+        # 1. 为当前大块生成摘要
+        summary = summarizer.summarize(large_chunk)
+        
+        # 2. 将大块分成小块（约2,000词）
+        small_chunks = chunker.split_for_translation(large_chunk)
+        
+        # 3. 使用摘要作为上下文翻译所有小块
+        translated_chunks = translator.translate_batch(small_chunks, summary=summary)
+        all_translated_chunks.extend(translated_chunks)
 
-if __name__ == "__main__":
-    input_md = "articles/example.md"
-    output_md = "articles/example_zh.md"
-    main(input_md, output_md)
+    # 合并所有翻译结果
+    final_text = '\n\n'.join(all_translated_chunks)
+
+    # 保存结果
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write(final_text)
 ```
-
 
 ---
 
