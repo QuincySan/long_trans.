@@ -95,6 +95,9 @@ markdown-translator/
 #### **summarizer.py（简化示例）**
 
 ```python
+"""
+该模块负责生成文本摘要。
+"""
 from typing import Optional
 from llm_client import ZetaClient
 
@@ -120,8 +123,8 @@ class Summarizer:
             生成的摘要文本
         """
         prompt = (
-            "请对以下文本生成一个简要的摘要，"
-            "尽量提炼出关键内容，控制在500字以内，并使用中文输出：\n\n"
+            "请对以下文本生成一个简要的摘要。"
+            "摘要应不超过500字，并使用中文输出：\n\n"
             f"{text}"
         )
         
@@ -129,7 +132,7 @@ class Summarizer:
         summary = self.llm_client.generate_text(
             prompt=prompt,
             stream=False,
-            model="claude-3-5-sonnet-20241022"  # 举例，实际模型可灵活替换
+            model="claude-3-5-sonnet-20241022"
         )
         return summary.strip()
 ```
@@ -137,12 +140,18 @@ class Summarizer:
 #### **translator.py（简化示例）**
 
 ```python
-from typing import List, Optional
+"""
+该模块负责使用大语言模型(LLM)进行文本翻译。
+支持基础和高质量两种翻译等级。
+"""
+from typing import List, Optional, Dict, Any, Tuple
 from llm_client import ZetaClient
 from utils.translation_logger import TranslationLogger
+from reviewer import TranslationReviewer
 
 class Translator:
-    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None, default_model: str = "deepseek-v3"):
+    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None, 
+                 default_model: str = "deepseek-v3", quality_level: str = "basic"):
         """
         使用API凭证初始化翻译器。
         
@@ -150,31 +159,47 @@ class Translator:
             api_key: 可选的API密钥。如果未提供，将尝试从环境变量获取。
             api_base: 可选的API基础URL。如果未提供，将尝试从环境变量获取。
             default_model: 默认使用的模型名称。
+            quality_level: 翻译质量等级，可选值：basic（基础）, high（高质量）
         """
         self.llm_client = ZetaClient(api_key=api_key, api_base=api_base)
         self.logger = TranslationLogger()
         self.default_model = default_model
+        self.quality_level = quality_level
+        if quality_level == "high":
+            self.reviewer = TranslationReviewer(api_key=api_key, api_base=api_base)
 
-    def _build_translation_prompts(self, text: str, summary: Optional[str]) -> tuple:
-        # 根据需要构建 System Prompt 和 User Prompt
-        system_prompt = "你是一位专业的 Markdown 翻译助手..."
-        user_prompt = (
-            f"请参考以下摘要，以帮助你理解上下文：\n{summary}\n\n"
-            "以下文本需要保持 Markdown 结构并进行准确、流畅的翻译：\n"
-            f"{text}"
+    def _build_translation_prompts(self, text: str, summary: Optional[str] = None) -> Tuple[str, str]:
+        """
+        构建翻译的system prompt和user prompt。
+        
+        参数：
+            text: 要翻译的文本
+            summary: 可选的上下文摘要
+            
+        返回：
+            (system_prompt, user_prompt) 元组
+        """
+        system_prompt = (
+            """你是一个专业的翻译助手。你的任务是将文本翻译成简体中文，同时：
+1. 保持原有的Markdown格式和结构
+2. 注意标题和正文之间的换行
+3. 仅翻译文字内容，保留代码块、链接URL等不需要翻译的部分
+4. 根据上下文准确理解专业术语，在后面加括号展示专业术语英文原文
+5. 直接给出翻译内容，不要输出任何解释说明"""
         )
+        
+        if summary:
+            user_prompt = (
+                f"""【背景摘要】:
+{summary}
+
+【待翻译文本】:
+{text}"""
+            )
+        else:
+            user_prompt = text
+        
         return system_prompt, user_prompt
-
-    def _get_response_format(self, model: str) -> str:
-        # 不同模型可能需要不同的 response_format
-        return "text"
-
-    def _process_stream_response(self, response_iterator):
-        # 将流式响应拼接为完整文本
-        final_text = ""
-        for chunk in response_iterator:
-            final_text += chunk
-        return final_text
 
     def translate_text(
         self,
@@ -207,16 +232,22 @@ class Translator:
                 system_prompt=system_prompt,
                 response_format=response_format
             )
-            final_text = self._process_stream_response(response_iterator)
-            return final_text
+            translated_text = self._process_stream_response(response_iterator)
         else:
-            return self.llm_client.generate_text(
+            translated_text = self.llm_client.generate_text(
                 prompt=user_prompt,
                 stream=False,
                 model=model,
                 system_prompt=system_prompt,
                 response_format=response_format
             )
+
+        # 如果是高质量模式，进行评分和润色
+        if self.quality_level == "high":
+            final_text, rating_result = self.reviewer.review_and_polish(text, translated_text)
+            return final_text
+        
+        return translated_text
 
     def translate_batch(
         self,
@@ -236,10 +267,28 @@ class Translator:
             翻译后的文本段落列表
         """
         model = model or self.default_model
+        total = len(texts)
         results = []
         
-        for text in texts:
+        for i, text in enumerate(texts, 1):
             result = self.translate_text(text, model=model, summary=summary)
+            
+            # 记录翻译结果
+            metadata = {
+                "model": model,
+                "stream": True,
+                "summary": summary,
+                "quality_level": self.quality_level
+            }
+            
+            self.logger.log_segment(
+                original_text=text,
+                translated_text=result,
+                segment_index=i,
+                total_segments=total,
+                metadata=metadata
+            )
+            
             results.append(result)
             
         return results
@@ -248,8 +297,14 @@ class Translator:
 #### **chunker.py（简化示例）**
 
 ```python
-import re
+"""
+该模块负责将Markdown文本分割成更小的段落。
+支持两级分段策略：
+1. 大段（约20,000词）用于生成摘要
+2. 小段（约2,000词）用于实际翻译
+"""
 from typing import List
+import re
 
 class Chunker:
     def __init__(self, large_chunk_size: int = 20000, small_chunk_size: int = 2000):
@@ -263,6 +318,29 @@ class Chunker:
         self.large_chunk_size = large_chunk_size
         self.small_chunk_size = small_chunk_size
 
+    def _count_words(self, text: str) -> int:
+        """
+        计算文本中的单词数。
+        同时支持英文单词和中文字。
+        
+        参数：
+            text: 输入文本
+            
+        返回：
+            单词数量
+        """
+        # 移除代码块，避免代码中的标识符被计入
+        text = re.sub(r'```[^`]*```', '', text)
+        
+        # 分别计算英文单词和中文字
+        # 1. 匹配英文单词（包括带连字符和数字的单词）
+        english_words = len(re.findall(r'\b\w+(?:[-\']\w+)*\b', text))
+        
+        # 2. 匹配中文字（每个中文字算作一个词）
+        chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
+        
+        return english_words + chinese_chars
+
     def split_for_summary(self, text: str) -> List[str]:
         """
         将输入文本分割成大块（约20,000词），用于生成摘要。
@@ -275,27 +353,43 @@ class Chunker:
         """
         return self._split_text(text, self.small_chunk_size)
 
-    def _count_words(self, text: str) -> int:
-        # 简易词数统计逻辑，可根据中英文混合进行扩展
-        words = re.findall(r'\S+', text)
-        return len(words)
-
     def _split_text(self, text: str, max_size: int) -> List[str]:
         """
-        将输入文本分割成块，同时保持Markdown结构。可在自然段边界或标题边界处尽量拆分。
+        将输入文本分割成块，同时保持Markdown结构。
+        优化后的分块策略：
+        1. 文本较短时直接返回
+        2. 保持标题与其内容在同一块
+        3. 智能合并多个section_block直到接近max_size
         """
-        # 若文本较短，则无需分段
-        if self._count_words(text) <= max_size:
+        # 如果文本较短，直接返回
+        if self._count_words(text) < max_size * 0.8:
             return [text]
 
         # 按标题分割，保持"标题+内容"作为最小单元
         raw_sections = re.split(r'(#{1,6}\s[^\n]+\n)', text)
         section_blocks = []
+        i = 0
         
-        for block in raw_sections:
-            if block.strip():
-                section_blocks.append(block)
+        while i < len(raw_sections):
+            # 处理开头非标题的情况
+            if i == 0 and not re.match(r'^#{1,6}\s', raw_sections[i]):
+                if raw_sections[i].strip():
+                    section_blocks.append(raw_sections[i])
+                i += 1
+                continue
 
+            # 处理标题及其内容
+            if re.match(r'^#{1,6}\s', raw_sections[i]):
+                block_content = raw_sections[i]
+                if i + 1 < len(raw_sections) and not re.match(r'^#{1,6}\s', raw_sections[i+1]):
+                    block_content += raw_sections[i+1]
+                    i += 1
+                section_blocks.append(block_content)
+            else:
+                section_blocks.append(raw_sections[i])
+            i += 1
+
+        # 智能合并section_blocks
         chunks = []
         current_chunk = ""
         current_word_count = 0
@@ -311,7 +405,7 @@ class Chunker:
                 current_chunk = block
                 current_word_count = block_word_count
 
-        if current_chunk:
+        if current_chunk.strip():
             chunks.append(current_chunk)
 
         return chunks
