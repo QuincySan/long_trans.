@@ -5,3 +5,6 @@ articles/
 to_translate/
 translated/
 .cursorrules
+
+# 开发环境中，docs还是需要备份的
+# docs/
