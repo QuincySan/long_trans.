@@ -15,6 +15,19 @@ from utils.markdown_parser import MarkdownParser
 # 默认目录配置
 DEFAULT_INPUT_FOLDER = "to_translate"
 DEFAULT_OUTPUT_FOLDER = "translated"
+DEFAULT_LOG_FOLDER = "logs"
+
+def ensure_folders_exist(folders: List[str]) -> None:
+    """
+    确保指定的文件夹存在，如果不存在则创建。
+    
+    参数：
+        folders: 需要确保存在的文件夹路径列表
+    """
+    for folder in folders:
+        if not os.path.exists(folder):
+            print(f"[提示] 创建文件夹：{folder}")
+            os.makedirs(folder)
 
 def process_large_chunk(
     chunk: str,
@@ -162,12 +175,12 @@ def process_files(
         api_base: LLM服务的API基础URL
         log_dir: 日志文件保存目录
     """
-    if not os.path.exists(input_folder):
-        print(f"[错误] 输入文件夹 '{input_folder}' 不存在。")
-        return
+    # 确保所有必要的文件夹都存在
+    ensure_folders_exist([input_folder, output_folder, log_dir])
 
-    # 确保输出文件夹存在
-    os.makedirs(output_folder, exist_ok=True)
+    if len(files) == 0:
+        print(f"[提示] 在文件夹 '{input_folder}' 中未找到Markdown文件。")
+        return
 
     print(f"\n=== 开始翻译，共 {len(files)} 个Markdown文件 ===\n")
     
@@ -261,7 +274,7 @@ def main():
     parser.add_argument(
         '-l', '--log-dir',
         help='日志文件保存目录（默认：logs）',
-        default='logs'
+        default=DEFAULT_LOG_FOLDER
     )
 
     parser.add_argument(
@@ -273,19 +286,16 @@ def main():
     args = parser.parse_args()
 
     try:
+        # 确保所有必要的文件夹都存在
+        ensure_folders_exist([args.input_folder, args.output_folder, args.log_dir])
+
         # 获取要处理的文件列表
         if args.file:
             # 单文件模式
             files = [args.file]
         else:
             # 批量模式：处理输入文件夹中的所有.md文件
-            if not os.path.exists(args.input_folder):
-                print(f"[错误] 输入文件夹 '{args.input_folder}' 不存在。")
-                return
             files = [f for f in os.listdir(args.input_folder) if f.lower().endswith(".md")]
-            if not files:
-                print(f"[提示] 在文件夹 '{args.input_folder}' 中未找到Markdown文件。")
-                return
 
         process_files(
             files=files,
