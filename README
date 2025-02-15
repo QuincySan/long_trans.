@@ -61,23 +61,24 @@
 
 ---
 
-### 四、目录结构（示例）
+### 四、目录结构
 
 ```plaintext
 markdown-translator/
 │
-├── README.md                # 本文件
-├── requirements.txt         # 项目所需依赖库
+├── README.md                # 项目说明文档
+├── requirements.txt         # 项目依赖库
 ├── main.py                  # 主入口脚本，组织翻译流程
-├── summarizer.py            # 摘要逻辑：2 万词级分段 + 调用 LLM 生成摘要
-├── translator.py            # 翻译逻辑：2,000 词级分段 + 调用 LLM
-├── chunker.py               # 分段相关函数（可包含两种不同的切分策略）
-├── llm_client.py            # LLM 客户端封装 (Fireworks.ai / openai 等)
-├── articles/                # 存放各类 Markdown 原文及翻译输出
-├── logs/                    # 存放翻译与摘要日志
+├── summarizer.py            # 摘要生成：2 万词级分段 + 调用 LLM
+├── translator.py            # 翻译处理：2,000 词级分段 + 调用 LLM
+├── chunker.py               # 分段策略实现
+├── llm_client.py            # LLM 客户端封装 (支持多种模型)
+├── to_translate/           # 存放待翻译的 Markdown 文件
+├── translated/             # 存放翻译结果和原文件
+├── logs/                   # 存放翻译日志
 └── utils/
-    ├── markdown_parser.py   # Markdown 解析与还原的辅助函数
-    └── translation_logger.py # 翻译过程中的日志功能
+    ├── markdown_parser.py   # Markdown 解析与还原
+    └── translation_logger.py # 翻译日志记录
 ```
 
 ---
