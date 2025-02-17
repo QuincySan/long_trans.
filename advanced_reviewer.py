@@ -24,17 +24,16 @@ class AdvancedReviewer:
         self.review_model = review_model
         self.polish_model = polish_model
 
-    def comment_on_translation(self, source_text: str, translated_text: str, stream: bool = True) -> Union[str, Iterator[str]]:
+    def comment_on_translation(self, source_text: str, translated_text: str) -> str:
         """
         让模型针对原文和译文，找出可优化之处（不需要给出评分），只需指出问题与改进建议。
 
         参数：
             source_text: 原文
             translated_text: 译文
-            stream: 是否使用流式输出，默认为True
 
         返回：
-            如果stream=True，返回字符串生成器；否则返回完整的改进建议文本
+            改进建议文本
         """
         system_prompt = """你是一位20年丰富经验专业的审校专家，精通中英文，对专业术语、行业用语和文体风格都有深入研究。
 你的任务是仔细审查重写内容质量，找出所有可以改进的地方，并提供专业、具体的改进建议。"""
@@ -65,26 +64,22 @@ class AdvancedReviewer:
 
         response = self.llm_client.generate_text(
             prompt=user_prompt,
-            stream=stream,
             model=self.review_model,
             system_prompt=system_prompt
         )
         
-        if stream:
-            return response
         return response.strip()
 
-    def polish_with_comments(self, translated_text: str, comments: str, stream: bool = True) -> Union[str, Iterator[str]]:
+    def polish_with_comments(self, translated_text: str, comments: str) -> str:
         """
         根据审校意见，对译文进行润色/改进。
 
         参数：
             translated_text: 初步译文
             comments: 审校意见
-            stream: 是否使用流式输出，默认为True
 
         返回：
-            如果stream=True，返回字符串生成器；否则返回完整的润色后译文
+            润色后的译文
         """
         system_prompt = """你是一位有着20年丰富经验专业的中英文编辑，擅长根据审校意见优化和润色重写内容。
 你的任务是在保持原意的基础上，保持原有的Markdown格式和结构，让重写内容更加准确、流畅、符合中国语序。
@@ -111,62 +106,35 @@ class AdvancedReviewer:
 
         response = self.llm_client.generate_text(
             prompt=user_prompt,
-            stream=stream,
             model=self.polish_model,
             system_prompt=system_prompt
         )
         
-        if stream:
-            return response
         return response.strip()
 
-    def comment_and_polish(self, source_text: str, translated_text: str, stream: bool = True) -> Tuple[str, str]:
+    def comment_and_polish(self, source_text: str, translated_text: str) -> Tuple[str, str]:
         """
         整合「点评可优化之处 + 基于改进意见润色」两步，供外部一次性调用。
-        这个新版本会分别执行评论和润色两个流程，并存储结果供后续使用。
 
         参数：
             source_text: 原文
             translated_text: 初步译文
-            stream: 是否使用流式输出，默认为True
 
         返回：
-            元组 (最终润色完成的译文, 审校意见)，无论是否为流式模式都返回相同格式
+            元组 (最终润色完成的译文, 审校意见)
         """
-        if not stream:
-            # 非流式模式保持不变
-            print("\n正在分析译文，寻找可优化之处...")
-            comments = self.comment_on_translation(source_text, translated_text, stream=False)
-            print("\n审校意见：")
-            print(comments)
-            
-            print("\n开始根据审校意见进行润色...")
-            final_text = self.polish_with_comments(translated_text, comments, stream=False)
-            print("\n润色完成！")
-            
-            self.latest_comments = comments
-            self.latest_polished_text = final_text
-            return final_text, comments
+        print("\n正在分析译文，寻找可优化之处...")
+        comments = self.comment_on_translation(source_text, translated_text)
+        print("\n审校意见：")
+        print(comments)
         
-        # 流式模式：分两步执行
-        print("\n=== 正在分析译文，找出可改进之处... ===")
-        comment_chunks = []
-        for chunk in self.comment_on_translation(source_text, translated_text, stream=True):
-            print(chunk, end="", flush=True)
-            comment_chunks.append(chunk)
+        print("\n开始根据审校意见进行润色...")
+        final_text = self.polish_with_comments(translated_text, comments)
+        print("\n润色完成！")
         
-        self.latest_comments = "".join(comment_chunks)
-        
-        print("\n\n=== 分析完成，开始润色... ===")
-        final_chunks = []
-        for chunk in self.polish_with_comments(translated_text, self.latest_comments, stream=True):
-            print(chunk, end="", flush=True)
-            final_chunks.append(chunk)
-        
-        self.latest_polished_text = "".join(final_chunks)
-        print("\n\n=== 润色完成! ===")
-        
-        return self.latest_polished_text, self.latest_comments  # 流式模式下也返回结果
+        self.latest_comments = comments
+        self.latest_polished_text = final_text
+        return final_text, comments
 
     def get_latest_results(self) -> Tuple[Optional[str], Optional[str]]:
         """

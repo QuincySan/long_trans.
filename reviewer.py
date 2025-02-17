@@ -70,7 +70,6 @@ class TranslationReviewer:
 
         response = self.llm_client.generate_text(
             prompt=prompt,
-            stream=False,
             model=self.rating_model
         )
         
@@ -93,7 +92,7 @@ class TranslationReviewer:
                 "overall_comment": "评分结果解析失败"
             }
 
-    def polish_translation(self, source_text: str, translated_text: str, rating_result: Dict[str, Any]) -> Iterator[str]:
+    def polish_translation(self, source_text: str, translated_text: str, rating_result: Dict[str, Any]) -> str:
         """
         根据评分结果对译文进行润色。
         
@@ -103,7 +102,7 @@ class TranslationReviewer:
             rating_result: 评分结果
             
         返回：
-            润色后的译文的流式输出迭代器
+            润色后的译文
             
         异常：
             TranslationReviewError: 润色过程出错
@@ -139,15 +138,11 @@ class TranslationReviewer:
 2. 确保专业术语的准确性和一致性
 3. 提高语言的流畅度和自然度
 4. 符合中文的表达习惯
-5. 直接输出优化后的译文，不要添加任何解释
-
-优化后的译文："""
+5. 直接输出优化后的译文，不要添加任何解释"""
 
         try:
-            # 使用流式输出
             return self.llm_client.generate_text(
                 prompt=prompt,
-                stream=True,
                 model=self.polish_model
             )
         except Exception as e:
@@ -175,14 +170,9 @@ class TranslationReviewer:
             print("译文质量良好，无需润色。")
             return translated_text, rating_result
         
-        # 3. 润色（流式输出）
+        # 3. 润色
         print(f"\n译文质量低于阈值（{self.score_threshold}分），开始润色...")
-        polished_text_parts = []
-        for chunk in self.polish_translation(source_text, translated_text, rating_result):
-            print(chunk, end="", flush=True)
-            polished_text_parts.append(chunk)
-        
-        polished_text = "".join(polished_text_parts)
+        polished_text = self.polish_translation(source_text, translated_text, rating_result)
         print("\n\n润色完成！")
         
         return polished_text, rating_result

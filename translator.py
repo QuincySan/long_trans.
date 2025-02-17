@@ -126,7 +126,6 @@ class Translator:
     def translate_text(
         self,
         text: str,
-        stream: bool = True,
         model: Optional[str] = None,
         summary: Optional[str] = None
     ) -> str:
@@ -135,7 +134,6 @@ class Translator:
         
         参数：
             text: 要翻译的文本（Markdown格式）
-            stream: 是否使用流式模式
             model: 使用的模型名称，如果未提供则使用默认模型
             summary: 可选的上下文摘要
             
@@ -149,23 +147,12 @@ class Translator:
         system_prompt, user_prompt = self._build_translation_prompts(text, summary)
         response_format = self._get_response_format(model)
 
-        if stream:
-            response_iterator = self.llm_client.generate_text(
-                prompt=user_prompt,
-                stream=True,
-                model=model,
-                system_prompt=system_prompt,
-                response_format=response_format
-            )
-            translated_text = self._process_stream_response(response_iterator)
-        else:
-            translated_text = self.llm_client.generate_text(
-                prompt=user_prompt,
-                stream=False,
-                model=model,
-                system_prompt=system_prompt,
-                response_format=response_format
-            )
+        translated_text = self.llm_client.generate_text(
+            prompt=user_prompt,
+            model=model,
+            system_prompt=system_prompt,
+            response_format=response_format
+        )
 
         # 根据质量等级进行不同的处理
         if self.quality_level == "medium":
@@ -215,7 +202,6 @@ class Translator:
             # 记录翻译结果
             metadata = {
                 "model": model,
-                "stream": True,
                 "summary": summary,
                 "quality_level": self.quality_level
             }

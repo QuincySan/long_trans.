@@ -34,7 +34,6 @@ class Summarizer:
         # 使用非流式输出，直接获取完整摘要
         summary = self.llm_client.generate_text(
             prompt=prompt,
-            stream=False,
             model="claude-3-5-sonnet-20241022"
         )
         return summary.strip() 

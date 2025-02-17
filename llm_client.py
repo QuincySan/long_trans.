@@ -3,7 +3,7 @@
 支持不同的LLM提供商和模型，便于后续扩展和切换。
 """
 import os
-from typing import List, Optional, Dict, Any, Generator
+from typing import List, Optional, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -13,19 +13,18 @@ load_dotenv()
 class LLMClient:
     """LLM客户端基类，定义通用接口"""
     
-    def generate_text(self, prompt: str, stream: bool = True) -> str | Generator:
+    def generate_text(self, prompt: str) -> str:
         """
         生成文本的抽象方法
         
         参数:
             prompt: 输入提示词
-            stream: 是否使用流式输出
             
         返回:
-            生成的文本或生成器
+            生成的文本
         """
         raise NotImplementedError
-        
+
 class FireworksClient(LLMClient):
     """Fireworks.ai API客户端实现"""
     
@@ -47,30 +46,28 @@ class FireworksClient(LLMClient):
         
     def generate_text(
         self, 
-        prompt: str, 
-        stream: bool = True,
+        prompt: str,
         model: str = "accounts/fireworks/models/deepseek-r1",
         temperature: float = 0.6,
         system_prompt: str = "",
         response_format: Optional[Dict[str, Any]] = None
-    ) -> str | Generator:
+    ) -> str:
         """
         使用Fireworks API生成文本
         
         参数:
             prompt: 输入提示词
-            stream: 是否使用流式输出
             model: 使用的模型名称
             temperature: 温度参数，控制输出的随机性
             system_prompt: 系统提示词
             response_format: 响应格式设置
             
         返回:
-            生成的文本或生成器
+            生成的文本
         """
         completion = self.client.chat.completions.create(
             model=model,
-            stream=stream,
+            stream=False,
             temperature=temperature,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -79,23 +76,7 @@ class FireworksClient(LLMClient):
             response_format=response_format
         )
         
-        if stream:
-            return self._handle_stream_response(completion)
         return completion.choices[0].message.content
-    
-    def _handle_stream_response(self, completion) -> Generator:
-        """
-        处理流式响应
-        
-        参数:
-            completion: 流式完成对象
-            
-        返回:
-            文本片段生成器
-        """
-        for chunk in completion:
-            if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
 
 class ZetaClient(LLMClient):
     """Zeta API客户端实现"""
@@ -134,26 +115,24 @@ class ZetaClient(LLMClient):
         
     def generate_text(
         self, 
-        prompt: str, 
-        stream: bool = True,
+        prompt: str,
         model: str = "claude-3-5-sonnet-20241022",
         temperature: Optional[float] = None,
         system_prompt: str = "",
         response_format: Optional[Dict[str, Any]] = None
-    ) -> str | Generator:
+    ) -> str:
         """
         使用Zeta API生成文本
         
         参数:
             prompt: 输入提示词
-            stream: 是否使用流式输出
             model: 使用的模型名称
             temperature: 温度参数，控制输出的随机性。如果未指定，使用模型默认值
             system_prompt: 系统提示词
             response_format: 响应格式设置
             
         返回:
-            生成的文本或生成器
+            生成的文本
         """
         if model not in self.SUPPORTED_MODELS:
             raise ValueError(f"不支持的模型: {model}。支持的模型包括: {', '.join(self.SUPPORTED_MODELS.keys())}")
@@ -163,7 +142,7 @@ class ZetaClient(LLMClient):
         
         completion = self.client.chat.completions.create(
             model=model,
-            stream=stream,
+            stream=False,
             temperature=temp,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -173,22 +152,6 @@ class ZetaClient(LLMClient):
             max_tokens=config["max_tokens"]
         )
         
-        if stream:
-            return self._handle_stream_response(completion)
         return completion.choices[0].message.content
-    
-    def _handle_stream_response(self, completion) -> Generator:
-        """
-        处理流式响应
-        
-        参数:
-            completion: 流式完成对象
-            
-        返回:
-            文本片段生成器
-        """
-        for chunk in completion:
-            if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
 
 # 后续可以添加其他LLM提供商的实现，如OpenAI、Claude等 
