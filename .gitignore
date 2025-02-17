@@ -6,5 +6,7 @@ to_translate/
 translated/
 .cursorrules
 
+.DS_Store
+
 # 开发环境中，docs还是需要备份的
 # docs/
