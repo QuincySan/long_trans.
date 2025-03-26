@@ -83,16 +83,16 @@ class ZetaClient(LLMClient):
     
     # 添加模型配置映射
     SUPPORTED_MODELS = {
-        "claude-3-5-sonnet-20241022": {
-            "max_tokens": 4096,
+        "claude-3-7-sonnet-20250219": {
+            "max_tokens": 40960,
             "default_temp": 0.6,
         },
         "deepseek-v3": {
-            "max_tokens": 4096,
+            "max_tokens": 40960,
             "default_temp": 0.7,
         },
         "gemini-2.0-pro-exp-02-05": {
-            "max_tokens": 4096,
+            "max_tokens": 40960,
             "default_temp": 0.7,
         }
     }

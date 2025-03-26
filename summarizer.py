@@ -27,13 +27,13 @@ class Summarizer:
         """
         prompt = (
             "请对以下文本生成一个简要的摘要。"
-            "摘要应不超过500字，并使用中文输出：\n\n"
+            "摘要应不超过500字，并使用俄语输出：\n\n"
             f"{text}"
         )
         
         # 使用非流式输出，直接获取完整摘要
         summary = self.llm_client.generate_text(
             prompt=prompt,
-            model="claude-3-5-sonnet-20241022"
+            model="gemini-2.0-pro-exp-02-05"
         )
         return summary.strip() 
