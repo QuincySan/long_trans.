@@ -102,7 +102,7 @@ def translate_file(
     chunker = Chunker(large_chunk_size=large_chunk_size, small_chunk_size=small_chunk_size)
     translator = Translator(api_key=api_key, api_base=api_base, quality_level=quality_level)
     summarizer = Summarizer(api_key=api_key, api_base=api_base)
-    translator.logger.log_dir = log_dir  # 设置日志目录
+    translator.logger.set_log_dir(log_dir)  # 设置日志目录
     parser = MarkdownParser()
 
     # 读取输入文件
