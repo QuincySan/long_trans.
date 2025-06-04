@@ -18,6 +18,12 @@ class TranslationLogger:
         self._ensure_log_dir()
         self.current_log_file = self._create_log_file()
         self.segments: List[Dict] = []
+
+    def set_log_dir(self, log_dir: str) -> None:
+        """Update the log directory and start a new log file."""
+        self.log_dir = log_dir
+        self._ensure_log_dir()
+        self.current_log_file = self._create_log_file()
         
     def _ensure_log_dir(self) -> None:
         """确保日志目录存在。"""
