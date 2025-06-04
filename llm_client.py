@@ -88,7 +88,7 @@ class ZetaClient(LLMClient):
             "default_temp": 0.6,
         },
         "deepseek-v3": {
-            "max_tokens": 40960,
+            "max_tokens": 8192,
             "default_temp": 0.7,
         },
         "gemini-2.0-pro-exp-02-05": {

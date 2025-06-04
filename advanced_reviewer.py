@@ -7,8 +7,8 @@ import json
 
 class AdvancedReviewer:
     def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None,
-                 review_model: str = "gemini-2.0-pro-exp-02-05",
-                 polish_model: str = "gemini-2.0-pro-exp-02-05"):
+                 review_model: str = "deepseek-v3",
+                 polish_model: str = "deepseek-v3"):
         """
         初始化高级翻译审校器。
         

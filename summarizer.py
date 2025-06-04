@@ -34,7 +34,7 @@ class Summarizer:
         # 使用非流式输出，直接获取完整摘要
         summary = self.llm_client.generate_text(
             prompt=prompt,
-            model="gemini-2.0-pro-exp-02-05",
+            model="deepseek-v3",
             system_prompt="你是一个专业的文本摘要助手，擅长提取文本的关键信息并生成简洁的摘要。"
         )
         return summary.strip() 
