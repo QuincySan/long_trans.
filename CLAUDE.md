@@ -26,7 +26,6 @@ python main.py -f filename.md
 
 # Quality levels
 python main.py --quality basic      # Direct translation
-python main.py --quality medium     # Translation + automated scoring + polishing
 python main.py --quality advanced   # Translation + detailed review + targeted polishing
 
 # Custom chunk sizes
@@ -59,14 +58,12 @@ The system implements a sophisticated chunking approach:
 
 ### Translation Quality Pipeline
 - **Basic**: Direct translation only
-- **Medium**: Translation → 5-dimensional scoring (Accuracy, Completeness, Fluency, Terminology, Style) → conditional polishing if score < 48/50
 - **Advanced**: Translation → qualitative review with specific feedback → targeted polishing
 
 ### Key Components Integration
 - **chunker.py**: Handles intelligent text segmentation that respects Markdown structure and natural boundaries
 - **translator.py**: Orchestrates the entire translation workflow with quality control
 - **summarizer.py**: Generates contextual summaries for large chunks (≤500 words)
-- **reviewer.py**: Implements automated scoring system for medium quality
 - **advanced_reviewer.py**: Provides detailed qualitative feedback for advanced quality
 - **llm_client.py**: Abstracts multiple LLM providers (supports Claude, DeepSeek, Gemini)
 

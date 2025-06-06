@@ -32,20 +32,6 @@ def test_translate_text_basic(monkeypatch):
     result = t.translate_text("hello")
     assert result == "translated"
 
-
-def test_translate_text_medium(monkeypatch):
-    setup_dummy(monkeypatch)
-    class DummyReviewer:
-        def __init__(self, *a, **k):
-            pass
-        def review_and_polish(self, src, text):
-            return "polished", {"score": 50}
-    monkeypatch.setattr(translator, 'TranslationReviewer', DummyReviewer)
-    t = translator.Translator(quality_level="medium")
-    result = t.translate_text("hello")
-    assert result == "polished"
-
-
 def test_translate_text_advanced(monkeypatch):
     setup_dummy(monkeypatch)
     class DummyAdv:

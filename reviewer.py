@@ -1,6 +1,6 @@
 """
 该模块提供翻译质量评分和润色功能。
-用于中级翻译模式下的自动评分和优化。
+原用于 "中级" 翻译模式的自动评分流程，当前版本已不再默认启用。
 """
 from typing import Dict, Optional, Any, Iterator
 import json

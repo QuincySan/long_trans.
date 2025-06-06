@@ -93,7 +93,7 @@ def translate_file(
         api_key: LLM服务的API密钥
         api_base: LLM服务的API基础URL
         log_dir: 日志文件保存目录
-        quality_level: 翻译质量等级，可选值：basic（基础）, high（高质量）
+        quality_level: 翻译质量等级，可选值：basic（基础）, advanced（高级）
     """
     print(f"\n开始处理文件: {input_file}")
     
@@ -177,7 +177,7 @@ def process_files(
         api_key: LLM服务的API密钥
         api_base: LLM服务的API基础URL
         log_dir: 日志文件保存目录
-        quality_level: 翻译质量等级，可选值：basic（基础）, high（高质量）
+        quality_level: 翻译质量等级，可选值：basic（基础）, advanced（高级）
     """
     # 确保所有必要的文件夹都存在
     ensure_folders_exist([input_folder, output_folder, log_dir])
@@ -290,8 +290,8 @@ def main():
 
     parser.add_argument(
         '--quality',
-        help='翻译质量等级 (basic: 基础翻译，适合一般性文档; medium: 中级翻译，带评分和润色; advanced: 高级翻译，带详细点评和润色。默认：basic)',
-        choices=['basic', 'medium', 'advanced'],
+        help='翻译质量等级 (basic: 基础翻译，适合一般性文档; advanced: 高级翻译，带详细点评和润色。默认：basic)',
+        choices=['basic', 'advanced'],
         default='basic'
     )
 
@@ -308,9 +308,7 @@ def main():
         else:
             # 批量模式：处理输入文件夹中的所有.md文件
             if args.quality == "basic":
-                print(f"\n[提示] 使用基础翻译等级。如需更高质量翻译，请添加 --quality medium 或 --quality advanced 参数")
-            elif args.quality == "medium":
-                print(f"\n[提示] 使用中级翻译等级，将对译文进行评分和润色")
+                print(f"\n[提示] 使用基础翻译等级。如需更高质量翻译，请添加 --quality advanced 参数")
             else:  # advanced
                 print(f"\n[提示] 使用高级翻译等级，将对译文进行详细点评和润色")
             files = [f for f in os.listdir(args.input_folder) if f.lower().endswith(".md")]

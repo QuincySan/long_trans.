@@ -1,11 +1,10 @@
 """
 该模块负责使用大语言模型(LLM)进行文本翻译。
-支持基础、中级和高级三种翻译等级。
+目前提供基础和高级两种翻译等级。
 """
 from typing import List, Optional, Dict, Any, Tuple
 from llm_client import ZetaClient
 from utils.translation_logger import TranslationLogger
-from reviewer import TranslationReviewer
 from advanced_reviewer import AdvancedReviewer
 
 class Translator:
@@ -18,7 +17,7 @@ class Translator:
             api_key: 可选的API密钥。如果未提供，将尝试从环境变量获取。
             api_base: 可选的API基础URL。如果未提供，将尝试从环境变量获取。
             default_model: 默认使用的模型名称。
-            quality_level: 翻译质量等级，可选值：basic（基础）, medium（中级）, advanced（高级）
+            quality_level: 翻译质量等级，可选值：basic（基础）, advanced（高级）
         """
         self.llm_client = ZetaClient(api_key=api_key, api_base=api_base)
         self.logger = TranslationLogger()
@@ -26,9 +25,7 @@ class Translator:
         self.quality_level = quality_level
         
         # 根据质量等级初始化相应的审校器
-        if quality_level == "medium":
-            self.reviewer = TranslationReviewer(api_key=api_key, api_base=api_base)
-        elif quality_level == "advanced":
+        if quality_level == "advanced":
             self.reviewer = AdvancedReviewer(api_key=api_key, api_base=api_base)
 
     def _build_translation_prompts(self, text: str, summary: Optional[str] = None) -> Tuple[str, str]:
@@ -155,10 +152,7 @@ class Translator:
         )
 
         # 根据质量等级进行不同的处理
-        if self.quality_level == "medium":
-            final_text, rating_result = self.reviewer.review_and_polish(text, translated_text)
-            return final_text
-        elif self.quality_level == "advanced":
+        if self.quality_level == "advanced":
             final_text, review_result = self.reviewer.comment_and_polish(text, translated_text)
             
             # 记录高级模式的审校结果

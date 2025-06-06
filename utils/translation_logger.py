@@ -57,7 +57,7 @@ class TranslationLogger:
             segment_index: 当前片段索引
             total_segments: 总片段数
             metadata: 额外的元数据信息
-            rating_result: 翻译评分结果（仅在高质量模式下使用）
+            rating_result: 翻译评分结果（仅在高级模式下使用）
             polished_text: 润色后的文本（仅在需要润色时使用）
         """
         segment = {
