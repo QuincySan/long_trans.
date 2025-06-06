@@ -77,7 +77,6 @@ markdown-translator/
 ├── main.py                  # 主程序入口，协调整体翻译Larry live确实不是很流程
 ├── translator.py            # 核心翻译逻辑实现
 ├── summarizer.py            # 文本摘要生成模块
-├── reviewer.py              # 翻译质量评分和润色模块
 ├── chunker.py              # 文本分段策略实现
 ├── llm_client.py           # LLM API 客户端封装
 │

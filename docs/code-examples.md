@@ -55,7 +55,6 @@ class Summarizer:
 from typing import List, Optional, Dict, Any, Tuple
 from llm_client import ZetaClient
 from utils.translation_logger import TranslationLogger
-from reviewer import TranslationReviewer
 
 class Translator:
     def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None, 
@@ -73,8 +72,6 @@ class Translator:
         self.logger = TranslationLogger()
         self.default_model = default_model
         self.quality_level = quality_level
-        if quality_level == "advanced":
-            self.reviewer = TranslationReviewer(api_key=api_key, api_base=api_base)
 
     def _build_translation_prompts(self, text: str, summary: Optional[str] = None) -> Tuple[str, str]:
         """
@@ -150,11 +147,6 @@ class Translator:
                 response_format=response_format
             )
 
-        # 如果是高级模式，进行评分和润色
-        if self.quality_level == "advanced":
-            final_text, rating_result = self.reviewer.review_and_polish(text, translated_text)
-            return final_text
-        
         return translated_text
 
     def translate_batch(
